@@ -5,10 +5,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-// Signature : par défaut, l'APK est signé avec la clé partagée du dépôt (keystore/shared-debug.keystore)
-// pour que chaque build CI puisse mettre à jour la version précédente installée.
-// Pour une vraie clé de release, définir les variables d'environnement RELEASE_KEYSTORE_FILE,
-// RELEASE_KEYSTORE_PASSWORD, RELEASE_KEY_ALIAS et RELEASE_KEY_PASSWORD.
+// Signature des APK de release : clé privée fournie par variables d'environnement
+// (en CI, depuis les secrets GitHub ; voir README). Elle n'est jamais stockée dans le dépôt.
+// Sans ces variables, l'APK de release est produit non signé ; les builds debug utilisent
+// la clé de debug locale d'Android.
 val releaseKeystore: String? = System.getenv("RELEASE_KEYSTORE_FILE")?.takeIf { it.isNotBlank() }
 
 android {
@@ -24,12 +24,6 @@ android {
     }
 
     signingConfigs {
-        create("shared") {
-            storeFile = rootProject.file("keystore/shared-debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
-        }
         if (releaseKeystore != null) {
             create("release") {
                 storeFile = file(releaseKeystore)
@@ -41,12 +35,11 @@ android {
     }
 
     buildTypes {
-        getByName("debug") {
-            signingConfig = signingConfigs.getByName("shared")
-        }
         getByName("release") {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName(if (releaseKeystore != null) "release" else "shared")
+            if (releaseKeystore != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
