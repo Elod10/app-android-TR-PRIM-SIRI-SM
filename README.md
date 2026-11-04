@@ -86,15 +86,40 @@ Prérequis : JDK 17 et SDK Android (plateforme 35).
 ./gradlew assembleRelease     # APK : app/build/outputs/apk/release/app-release.apk
 ```
 
-Par défaut l'APK est signé avec la clé partagée `keystore/shared-debug.keystore` (non secrète) afin
-que chaque build puisse mettre à jour la version installée. Pour signer avec votre propre clé,
-définir `RELEASE_KEYSTORE_FILE`, `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS` et
-`RELEASE_KEY_PASSWORD` avant le build.
+### Signature
+
+Les APK de release sont signés avec une **clé privée qui n'est jamais stockée dans le dépôt**.
+En local, définir avant le build `RELEASE_KEYSTORE_FILE`, `RELEASE_KEYSTORE_PASSWORD`,
+`RELEASE_KEY_ALIAS` et `RELEASE_KEY_PASSWORD` (sinon l'APK de release est produit non signé).
+
+En CI, la clé est lue depuis quatre secrets du dépôt (Settings → Secrets and variables → Actions) :
+
+| Secret | Contenu |
+| --- | --- |
+| `RELEASE_KEYSTORE_BASE64` | le fichier keystore encodé en base64 (`base64 -w0 release.keystore`) |
+| `RELEASE_KEYSTORE_PASSWORD` | mot de passe du keystore |
+| `RELEASE_KEY_ALIAS` | alias de la clé |
+| `RELEASE_KEY_PASSWORD` | mot de passe de la clé |
+
+Créer la clé (une seule fois, à conserver précieusement : sans elle, impossible de publier des mises à
+jour de l'application) :
+
+```bash
+keytool -genkeypair -v -keystore release.keystore -storetype PKCS12 \
+  -alias tempsreelidf -keyalg RSA -keysize 4096 -validity 10000
+```
+
+Sans ces secrets (par exemple pour une pull request venant d'un fork), la CI produit seulement un APK
+de debug ; un tag `v*` échoue volontairement plutôt que de publier un APK non signé.
 
 Le workflow GitHub Actions `.github/workflows/android.yml` exécute les tests, construit l'APK à chaque
 push (artefact téléchargeable) et publie une release pour chaque tag `v*`.
 
-## Données et licences
+## Licence
+
+Code sous licence [MIT](LICENSE). Les contributions sont les bienvenues (issues et pull requests).
+
+## Données
 
 Données © Île-de-France Mobilités : API PRIM (licence Mobilités) et référentiels open data
 (licence ODbL). Cette application n'est pas affiliée à Île-de-France Mobilités.

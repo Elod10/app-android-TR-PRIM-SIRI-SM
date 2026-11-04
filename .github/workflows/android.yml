@@ -27,17 +27,44 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Clé de signature
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "RELEASE_KEYSTORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "::error::Secret RELEASE_KEYSTORE_BASE64 absent : impossible de publier une release signée."
+            exit 1
+          else
+            echo "::warning::Secret RELEASE_KEYSTORE_BASE64 absent : seul un APK de debug est produit."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Tests unitaires et APK
+        env:
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon --stacktrace testDebugUnitTest assembleRelease
+          if [ "${{ steps.signing.outputs.signed }}" = "true" ]; then TASK=assembleRelease; else TASK=assembleDebug; fi
+          ./gradlew --no-daemon --stacktrace testDebugUnitTest "$TASK"
 
       - name: Renommer l'APK
         id: apk
         run: |
           VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
-          NAME="TempsReelIDF-${VERSION}-${GITHUB_SHA::7}.apk"
-          cp app/build/outputs/apk/release/app-release.apk "$NAME"
+          if [ "${{ steps.signing.outputs.signed }}" = "true" ]; then
+            SRC=app/build/outputs/apk/release/app-release.apk; SUFFIX=""
+          else
+            SRC=app/build/outputs/apk/debug/app-debug.apk; SUFFIX="-debug"
+          fi
+          NAME="TempsReelIDF-${VERSION}-${GITHUB_SHA::7}${SUFFIX}.apk"
+          cp "$SRC" "$NAME"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
