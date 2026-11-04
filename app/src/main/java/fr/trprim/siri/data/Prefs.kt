@@ -10,6 +10,14 @@ class Prefs(context: Context) {
     private val app = context.applicationContext
     private val settings: SharedPreferences = app.getSharedPreferences("settings", Context.MODE_PRIVATE)
     private val widgets: SharedPreferences = app.getSharedPreferences("widgets", Context.MODE_PRIVATE)
+    private val formats: SharedPreferences = app.getSharedPreferences("prim_formats", Context.MODE_PRIVATE)
+
+    /** Formats de requête PRIM acceptés, mémorisés entre deux actualisations. */
+    val primFormats: PrimClient.FormatCache = object : PrimClient.FormatCache {
+        override fun get(key: String): String? = formats.getString(key, null)
+        override fun put(key: String, value: String) = formats.edit().putString(key, value).apply()
+        override fun remove(key: String) = formats.edit().remove(key).apply()
+    }
 
     var apiKey: String
         get() = settings.getString(KEY_API, "")?.trim().orEmpty()

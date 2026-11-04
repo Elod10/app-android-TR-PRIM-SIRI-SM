@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
+import android.os.PowerManager
 import android.util.Log
 import fr.trprim.siri.data.Departure
 import fr.trprim.siri.data.Directions
@@ -71,8 +72,12 @@ object WidgetUpdater {
         mutex.withLock {
             val prefs = Prefs(context)
             val now = System.currentTimeMillis()
+            // Écran éteint (ex. rafraîchissement périodique déclenché par Android) : aucune requête,
+            // sauf action explicite de l'utilisateur.
+            val screenOn = isInteractive(context)
             val targets = ids.filter { id ->
-                prefs.config(id) != null && (force || needsRefresh(prefs.state(id), prefs.refreshMinutes, now))
+                prefs.config(id) != null &&
+                    (force || (screenOn && needsRefresh(prefs.state(id), prefs.refreshMinutes, now)))
             }
             ids.filter { it !in targets }.forEach { render(context, it) }
             if (targets.isEmpty()) return
@@ -82,7 +87,7 @@ object WidgetUpdater {
             }
 
             targets.forEach { render(context, it, refreshing = true) }
-            val client = PrimClient(prefs.apiKey)
+            val client = PrimClient(prefs.apiKey, formats = prefs.primFormats)
             coroutineScope {
                 // Requêtes partagées entre widgets portant sur le même point d'arrêt et la même ligne.
                 val requests = HashMap<Pair<String, String>, Deferred<Result<List<Departure>>>>()
@@ -137,6 +142,9 @@ object WidgetUpdater {
         is PrimException -> t.message ?: "Erreur PRIM"
         else -> "Erreur : ${t.message ?: t.javaClass.simpleName}"
     }
+
+    private fun isInteractive(context: Context): Boolean =
+        context.getSystemService(PowerManager::class.java)?.isInteractive ?: true
 
     private fun needsRefresh(state: WidgetState?, refreshMinutes: Int, now: Long): Boolean {
         if (state == null) return true
