@@ -87,8 +87,30 @@ class PrimClientTest {
         out.flush()
     }
 
-    private fun client(key: String = "secret") =
-        PrimClient(key, "http://127.0.0.1:${server.localPort}/stop-monitoring")
+    private fun client(key: String = "secret", formats: PrimClient.FormatCache = PrimClient.FormatCache.InMemory()) =
+        PrimClient(key, "http://127.0.0.1:${server.localPort}/stop-monitoring", formats)
+
+    @Test
+    fun remembersAcceptedFormat() {
+        val formats = PrimClient.FormatCache.InMemory()
+        client(formats = formats).departures("IDFM:monomodalStopPlace:1", "C01742")
+        assertEquals(4, requests.size)
+
+        requests.clear()
+        val again = client(formats = formats).departures("IDFM:monomodalStopPlace:1", "C01742")
+        assertEquals(listOf("Boissy-Saint-Léger"), again.map { it.destination })
+        assertEquals("Une seule requête grâce au format mémorisé", listOf("MonitoringRef=STIF:StopPoint:Q:1:"), requests)
+    }
+
+    @Test
+    fun forgetsFormatThatStoppedWorking() {
+        val formats = PrimClient.FormatCache.InMemory()
+        val key = "IDFM:monomodalStopPlace:1|C01742"
+        formats.put(key, "STIF:StopArea:SP:1:|")
+        client(formats = formats).departures("IDFM:monomodalStopPlace:1", "C01742")
+        assertEquals("MonitoringRef=STIF:StopArea:SP:1:", requests.first())
+        assertEquals("STIF:StopPoint:Q:1:|", formats.get(key))
+    }
 
     @Test
     fun fallsBackToStopPointThenWithoutLineRef() {

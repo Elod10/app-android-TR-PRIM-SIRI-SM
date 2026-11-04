@@ -17,7 +17,27 @@ class PrimException(val kind: Kind, message: String, cause: Throwable? = null) :
 class PrimClient(
     private val apiKey: String,
     private val stopMonitoringUrl: String = STOP_MONITORING_URL,
+    private val formats: FormatCache = FormatCache.InMemory(),
 ) {
+
+    /**
+     * Mémorise, pour chaque couple point d'arrêt / ligne, le format de requête accepté par PRIM
+     * (MonitoringRef et présence du filtre LineRef), pour ne pas refaire les essais de repli
+     * à chaque actualisation.
+     */
+    interface FormatCache {
+        fun get(key: String): String?
+        fun put(key: String, value: String)
+        fun remove(key: String)
+
+        class InMemory : FormatCache {
+            private val map = java.util.concurrent.ConcurrentHashMap<String, String>()
+            override fun get(key: String): String? = map[key]
+            override fun put(key: String, value: String) { map[key] = value }
+            override fun remove(key: String) { map.remove(key) }
+        }
+    }
+
 
     companion object {
         const val STOP_MONITORING_URL = "https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring"
@@ -72,21 +92,33 @@ class PrimClient(
     @Throws(PrimException::class)
     fun departures(stopId: String, lineId: String?): List<Departure> {
         if (apiKey.isBlank()) throw PrimException(PrimException.Kind.NO_KEY, "Clé API PRIM non configurée")
+        val lineRef = lineId?.let { "STIF:Line::$it:" }
+        val cacheKey = "$stopId|${lineId.orEmpty()}"
+
+        // Toutes les combinaisons possibles, dans l'ordre de préférence.
+        val attempts = monitoringRefs(stopId).flatMap { ref ->
+            if (lineRef != null) listOf(ref to lineRef, ref to null) else listOf(ref to null)
+        }
+        // Le format qui a fonctionné la dernière fois est essayé en premier.
+        val remembered = formats.get(cacheKey)?.let { saved -> attempts.firstOrNull { encode(it) == saved } }
+        val ordered = if (remembered != null) listOf(remembered) + (attempts - remembered) else attempts
+
         var lastError: PrimException? = null
-        for (ref in monitoringRefs(stopId)) {
-            val attempts = if (lineId != null) listOf("STIF:Line::$lineId:", null) else listOf(null)
-            for (lineRef in attempts) {
-                try {
-                    val result = request(ref, lineRef, stopId)
-                    return if (lineId != null) result.filter { lineMatches(it.lineRef, lineId) } else result
-                } catch (e: PrimException) {
-                    lastError = e
-                    if (e.kind != PrimException.Kind.UNKNOWN_STOP) throw e
-                }
+        for (attempt in ordered) {
+            try {
+                val result = request(attempt.first, attempt.second, stopId)
+                if (attempt != remembered) formats.put(cacheKey, encode(attempt))
+                return if (lineId != null) result.filter { lineMatches(it.lineRef, lineId) } else result
+            } catch (e: PrimException) {
+                lastError = e
+                if (e.kind != PrimException.Kind.UNKNOWN_STOP) throw e
+                if (attempt == remembered) formats.remove(cacheKey)
             }
         }
         throw lastError ?: PrimException(PrimException.Kind.UNKNOWN_STOP, "Arrêt inconnu de l'API PRIM")
     }
+
+    private fun encode(attempt: Pair<String, String?>): String = attempt.first + "|" + (attempt.second ?: "")
 
     /** Vérifie que la clé est acceptée par PRIM. */
     @Throws(PrimException::class)

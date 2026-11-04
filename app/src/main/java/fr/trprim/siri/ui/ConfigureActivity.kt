@@ -395,7 +395,7 @@ class ConfigureActivity : Activity() {
             val results: List<Pair<String, Result<List<Departure>>>> = if (apiKey.isBlank()) {
                 s.stopIds.map { it to Result.failure(PrimException(PrimException.Kind.NO_KEY, getString(R.string.key_required))) }
             } else {
-                val client = PrimClient(apiKey)
+                val client = PrimClient(apiKey, formats = prefs.primFormats)
                 withContext(Dispatchers.IO) {
                     s.stopIds.map { id -> async { id to runCatching { client.departures(id, l.id) } } }.awaitAll()
                 }
