@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="@dimen/screen_padding">
+
+        <!-- Clé API -->
+        <LinearLayout style="@style/Card">
+
+            <TextView
+                style="@style/SectionTitle"
+                android:text="@string/main_key_title" />
+
+            <TextView
+                style="@style/HelpText"
+                android:text="@string/main_key_help" />
+
+            <EditText
+                android:id="@+id/key_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:fontFamily="monospace"
+                android:hint="@string/main_key_hint"
+                android:importantForAutofill="no"
+                android:inputType="textPassword|textNoSuggestions"
+                android:maxLines="1"
+                android:textSize="14sp" />
+
+            <CheckBox
+                android:id="@+id/key_show"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/main_key_show" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/key_portal"
+                    style="?android:attr/borderlessButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/main_key_open_portal" />
+
+                <Button
+                    android:id="@+id/key_test"
+                    style="?android:attr/borderlessButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/main_key_test" />
+
+                <Button
+                    android:id="@+id/key_save"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/main_key_save" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/key_status"
+                style="@style/HelpText"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- Actualisation -->
+        <LinearLayout style="@style/Card">
+
+            <TextView
+                style="@style/SectionTitle"
+                android:text="@string/main_refresh_title" />
+
+            <Spinner
+                android:id="@+id/refresh_spinner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp" />
+
+            <TextView
+                style="@style/HelpText"
+                android:layout_marginTop="4dp"
+                android:text="@string/main_refresh_help" />
+        </LinearLayout>
+
+        <!-- Widgets -->
+        <LinearLayout style="@style/Card">
+
+            <TextView
+                style="@style/SectionTitle"
+                android:text="@string/main_widgets_title" />
+
+            <TextView
+                android:id="@+id/widgets_empty"
+                style="@style/HelpText"
+                android:text="@string/main_widgets_empty" />
+
+            <LinearLayout
+                android:id="@+id/widgets_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <Button
+                android:id="@+id/add_widget"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:text="@string/main_add_widget" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/about"
+            style="@style/HelpText"
+            android:layout_marginTop="4dp"
+            android:textSize="12sp" />
+    </LinearLayout>
+</ScrollView>
