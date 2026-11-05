@@ -82,6 +82,14 @@ class ConfigureActivity : Activity() {
     private var viaShortcut = false
     private var directionOptions: List<DirectionOption> = emptyList()
 
+    /** Format choisi dans la liste des widgets du lanceur (null pour l'entrée automatique). */
+    private val chosenFormat: WidgetFormat? by lazy {
+        WidgetProviders.formatOf(AppWidgetManager.getInstance(this).getAppWidgetInfo(widgetId)?.provider?.className)
+    }
+
+    /** Vrai si le format choisi n'affiche qu'un sens : un seul peut alors être coché. */
+    private val oneDirectionOnly: Boolean get() = chosenFormat?.followsOneDirection == true
+
     private lateinit var breadcrumb: TextView
     private lateinit var stepHelp: TextView
     private lateinit var search: EditText
@@ -436,11 +444,11 @@ class ConfigureActivity : Activity() {
                 RowItem(title = opt.title, subtitle = opt.subtitle, checkable = true, payload = opt)
             }
             preselect(allItem, optionItems, l, s)
-            adapter.setItems(listOf(allItem) + optionItems)
+            adapter.setItems(if (oneDirectionOnly) optionItems else listOf(allItem) + optionItems)
             showList()
 
             val errors = results.mapNotNull { it.second.exceptionOrNull() }
-            val help = getString(R.string.direction_help)
+            val help = getString(if (oneDirectionOnly) R.string.direction_help_single else R.string.direction_help)
             stepHelp.text = if (errors.isNotEmpty() && errors.size == results.size) {
                 getString(R.string.error_directions, errors.first().message ?: "") + "\n\n" + help
             } else {
@@ -451,25 +459,19 @@ class ConfigureActivity : Activity() {
         }
     }
 
-    /** Format choisi dans la liste des widgets du lanceur (null pour l'entrée automatique). */
-    private fun chosenFormat(): WidgetFormat? = WidgetProviders.formatOf(
-        AppWidgetManager.getInstance(this).getAppWidgetInfo(widgetId)?.provider?.className,
-    )
-
     /**
-     * Coche les sens déjà choisis lors d'une précédente configuration du même arrêt, ou « Tous les
-     * sens » pour un nouveau widget dont le format affiche les deux sens.
+     * Coche les sens déjà choisis lors d'une précédente configuration du même arrêt. Pour un nouveau
+     * widget, coche « Tous les sens » si son format affiche les deux sens, ou le seul sens proposé.
      */
     private fun preselect(allItem: RowItem, optionItems: List<RowItem>, l: Line, s: Stop) {
         val previous = existing?.takeIf { it.line.id == l.id && it.stop.stopIds == s.stopIds }?.directions
-        if (previous == null) {
-            if (chosenFormat()?.showsBothDirections == true || directionOptions.none { it.key != null }) {
-                allItem.checked = true
+        val wasAllDirections = previous != null && s.stopIds.all { previous[it]?.isEmpty() == true }
+        if (previous == null || wasAllDirections) {
+            when {
+                oneDirectionOnly -> optionItems.singleOrNull()?.checked = true
+                wasAllDirections || chosenFormat?.showsBothDirections == true ||
+                    directionOptions.none { it.key != null } -> allItem.checked = true
             }
-            return
-        }
-        if (s.stopIds.all { previous[it]?.isEmpty() == true }) {
-            allItem.checked = true
             return
         }
         optionItems.forEach { item ->
@@ -478,6 +480,7 @@ class ConfigureActivity : Activity() {
             val key = opt.key
             item.checked = keys.isEmpty() || (key != null && keys.any { normalizeLabel(it) == normalizeLabel(key) })
         }
+        if (oneDirectionOnly) optionItems.filter { it.checked }.drop(1).forEach { it.checked = false }
     }
 
     private fun toggleDirection(item: RowItem) {
@@ -486,7 +489,9 @@ class ConfigureActivity : Activity() {
         if (item.payload === AllDirections) {
             if (item.checked) adapter.items.forEach { if (it !== item) it.checked = false }
         } else if (item.checked) {
-            adapter.items.firstOrNull { it.payload === AllDirections }?.checked = false
+            adapter.items.forEach { other ->
+                if (other !== item && (oneDirectionOnly || other.payload === AllDirections)) other.checked = false
+            }
         }
         adapter.notifyDataSetChanged()
         updateSaveEnabled()

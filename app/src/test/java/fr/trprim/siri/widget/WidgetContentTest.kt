@@ -130,6 +130,18 @@ class WidgetContentTest {
     }
 
     @Test
+    fun oneDirectionFormatsAreIdentified() {
+        val one = WidgetFormat.entries.filter { it.followsOneDirection }
+        assertEquals(
+            listOf(WidgetFormat.PASTILLE, WidgetFormat.UN_SENS, WidgetFormat.GRAND_CHIFFRE, WidgetFormat.FRISE, WidgetFormat.TRAIN),
+            one,
+        )
+        // Seule la liste accepte les deux usages : elle indique la destination de chaque passage.
+        val neither = WidgetFormat.entries.filter { !it.followsOneDirection && !it.showsBothDirections }
+        assertEquals(listOf(WidgetFormat.LISTE), neither)
+    }
+
+    @Test
     fun singleDirectionDetection() {
         assertTrue(config(metro, oneDirection).isSingleDirection)
         assertFalse(config(metro, allDirections).isSingleDirection)
@@ -178,6 +190,14 @@ class WidgetContentTest {
         assertEquals("puis 5", five.thenLabel())
         assertEquals("puis 5 min", five.thenLabel(withUnit = true))
         assertEquals("puis <1", WidgetContent.passage(dep("A", 0), now, "metro").thenLabel())
+    }
+
+    @Test
+    fun thenLabelKeepsOnlyTheMinutesWhenSpaceIsShort() {
+        val next = WidgetContent.passage(dep("A", 36), now, "metro")
+        assertEquals("puis 36", next.thenLabelFitting { it.length <= 7 })
+        assertEquals("36", next.thenLabelFitting { it.length <= 2 })
+        assertNull(next.thenLabelFitting { it.length <= 1 })
     }
 
     // --- Sens --------------------------------------------------------------------------------

@@ -15,7 +15,8 @@ prochains passages d'une ligne à un arrêt d'Île-de-France, à partir de l'API
     `arrets-lignes`), avec recherche, pastilles aux couleurs officielles et cache local de 7 jours.
   - **Sens** : l'application interroge PRIM en temps réel sur chaque point d'arrêt (quai) de l'arrêt
     choisi et propose les sens observés (« Vers Porte de Clignancourt »…), ou « Tous les sens ».
-    Plusieurs sens/destinations peuvent être cochés (utile pour les branches du RER).
+    Plusieurs sens/destinations peuvent être cochés (utile pour les branches du RER), sauf sur les
+    widgets qui n'affichent qu'un sens : Pastille, Un sens, Grand chiffre, Frise et Train et voie.
 - **Dix widgets au choix**, depuis la liste des widgets du lanceur ou l'application, tous
   redimensionnables :
 

@@ -147,14 +147,19 @@ private class Scene(
         val badgeWidth = badge(pad, 19f, 22f)
         val tagRight = w - pad
         val tagBase = baseline(8f, 22f, 12.5f)
+        val tagRoom = tagRight - pad - badgeWidth - 2f
         val next = WidgetContent.nextPassage(model.passages, first)
         when {
             model.refreshing -> textRight("…", tagRight, tagBase, Face.MEDIUM, 12.5f, p.text2)
             model.stale -> Unit
-            first.isDelayed -> lateTag("+${first.delayMinutes}", tagRight, tagBase, 12.5f)
+            first.isDelayed -> {
+                val delay = "+${first.delayMinutes}"
+                if (lateTagWidth(delay, 12.5f) <= tagRoom) lateTag(delay, tagRight, tagBase, 12.5f)
+            }
             next != null -> {
-                val label = fit(next.thenLabel(), Face.MEDIUM, 12.5f, tagRight - pad - badgeWidth - 4f)
-                textRight(label, tagRight, tagBase, Face.MEDIUM, 12.5f, p.text2)
+                // Un numéro de ligne long ne laisse parfois de la place que pour le nombre de minutes.
+                val label = next.thenLabelFitting { measure(it, Face.MEDIUM, 12.5f) <= tagRoom }
+                if (label != null) textRight(label, tagRight, tagBase, Face.MEDIUM, 12.5f, p.text2)
             }
         }
 

@@ -91,6 +91,7 @@
     <string name="no_result">Aucun résultat</string>
     <string name="no_stop">Aucun arrêt trouvé pour cette ligne</string>
     <string name="direction_help">Choisissez le ou les sens à afficher. Ils sont détectés à partir des passages temps réel : si votre sens n\'apparaît pas (fin de service…), choisissez « Tous les sens » ou réessayez plus tard.</string>
+    <string name="direction_help_single">Ce widget affiche un seul sens : choisissez-le. Les sens sont détectés à partir des passages temps réel : si le vôtre n\'apparaît pas (fin de service…), réessayez plus tard. Pour suivre les deux sens, ajoutez plutôt un widget « Deux sens ».</string>
     <string name="direction_all">Tous les sens</string>
     <string name="direction_all_sub">Afficher tous les passages de la ligne à cet arrêt</string>
     <string name="direction_select_one">Choisissez au moins un sens</string>

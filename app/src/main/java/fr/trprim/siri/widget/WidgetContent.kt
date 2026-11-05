@@ -34,6 +34,10 @@ enum class WidgetFormat(
     val showsBothDirections: Boolean
         get() = this == COMPACT || this == DEUX_SENS || this == DEUX_SENS_LARGE
 
+    /** Vrai pour les formats qui n'affichent qu'un sens : la configuration n'en accepte qu'un. */
+    val followsOneDirection: Boolean
+        get() = this == PASTILLE || this == UN_SENS || this == GRAND_CHIFFRE || this == FRISE || this == TRAIN
+
     companion object {
         private const val NARROW_BELOW = 130f
         private const val WIDE_FROM = 250f
@@ -99,6 +103,9 @@ data class Passage(
         val unit = if (withUnit && kind != WaitKind.CLOCK) " min" else ""
         return "puis $shortWait$unit"
     }
+
+    /** Libellé du passage suivant qui tient dans la place disponible : « puis 5 », sinon « 5 ». */
+    fun thenLabelFitting(fits: (String) -> Boolean): String? = listOf(thenLabel(), shortWait).firstOrNull(fits)
 
     /** Détail lisible à voix haute (lecteurs d'écran). */
     val spokenWait: String
