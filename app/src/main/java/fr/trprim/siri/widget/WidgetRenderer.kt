@@ -22,6 +22,7 @@ object WidgetRenderer {
     private const val DEFAULT_HEIGHT_DP = 192f
 
     /**
+     * @param fixedFormat format choisi dans la liste des widgets, ou null pour l'adapter à la taille
      * @param renderScale réduit la définition de l'image si elle est trop lourde pour le lanceur
      */
     fun build(
@@ -33,10 +34,11 @@ object WidgetRenderer {
         refreshing: Boolean,
         options: Bundle?,
         now: Long = System.currentTimeMillis(),
+        fixedFormat: WidgetFormat? = null,
         renderScale: Float = 1f,
     ): RemoteViews {
         val (width, height) = widgetSize(context, options)
-        val model = WidgetModels.build(config, state, hasApiKey, refreshing, width, height, now)
+        val model = WidgetModels.build(config, state, hasApiKey, refreshing, width, height, now, fixedFormat)
         val density = context.resources.displayMetrics.density * renderScale
 
         val views = RemoteViews(context.packageName, R.layout.widget_canvas)

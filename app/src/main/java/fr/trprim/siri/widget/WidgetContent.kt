@@ -30,6 +30,10 @@ enum class WidgetFormat(
     DEUX_SENS_LARGE(348f, 192f, 28f, true),
     LISTE(348f, 192f, 28f, false);
 
+    /** Vrai pour les formats pensés pour afficher les deux sens côte à côte. */
+    val showsBothDirections: Boolean
+        get() = this == COMPACT || this == DEUX_SENS || this == DEUX_SENS_LARGE
+
     companion object {
         private const val NARROW_BELOW = 130f
         private const val WIDE_FROM = 250f
@@ -322,10 +326,11 @@ object WidgetModels {
         widthDp: Float,
         heightDp: Float,
         now: Long,
+        fixedFormat: WidgetFormat? = null,
     ): WidgetModel {
         val line = config?.line
         val rail = line?.mode == "rail"
-        val format = WidgetFormat.select(widthDp, heightDp, rail, config?.isSingleDirection ?: true)
+        val format = fixedFormat ?: WidgetFormat.select(widthDp, heightDp, rail, config?.isSingleDirection ?: true)
         val palette = Palettes.resolve(config?.theme ?: WidgetTheme.AUTO, format, line)
 
         val upcoming = if (config != null && state != null) Directions.upcoming(state.departures, now) else emptyList()

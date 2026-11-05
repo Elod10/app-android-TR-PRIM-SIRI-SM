@@ -16,17 +16,20 @@ prochains passages d'une ligne à un arrêt d'Île-de-France, à partir de l'API
   - **Sens** : l'application interroge PRIM en temps réel sur chaque point d'arrêt (quai) de l'arrêt
     choisi et propose les sens observés (« Vers Porte de Clignancourt »…), ou « Tous les sens ».
     Plusieurs sens/destinations peuvent être cochés (utile pour les branches du RER).
-- **Widget redimensionnable, du 1×1 au 4×3** : le format s'adapte à la taille du widget, au type de
-  ligne et au sens choisi.
+- **Dix widgets au choix dans la liste des widgets du lanceur**, tous redimensionnables :
 
-  | Taille | Un sens | Tous les sens |
+  | Widget | Taille de départ | Contenu |
   |---|---|---|
-  | 1×1 | Pastille | Pastille (prochain passage) |
-  | 2×1 | Prochain passage et suivant | Prochain passage et suivant |
-  | 2×2 | Grand chiffre et frise ; voie en grand pour les trains | Les deux sens empilés |
-  | 4×1 | Frise des prochains passages | Les deux sens, en compact |
-  | 4×2 | Liste des prochains passages | Les deux sens avec frise ; liste pour les trains |
-  | 4×3 et plus | Liste | Liste |
+  | Pastille | 1×1 | Le prochain passage, en grand |
+  | Un sens | 2×1 | Le prochain passage et le suivant |
+  | Grand chiffre | 2×2 | Le prochain passage en très grand, les suivants sur une frise |
+  | Train et voie | 2×2 | Le prochain train et sa voie |
+  | Frise | 4×1 | Les prochains passages d'un sens sur une frise |
+  | Deux sens compact | 4×1 | Les deux sens sur deux lignes |
+  | Deux sens | 2×2 | Les deux sens l'un au-dessus de l'autre |
+  | Deux sens avec frise | 4×2 | Les deux sens côte à côte, avec leur frise |
+  | Liste des départs | 4×2 | Mission, voie et heure ; s'allonge pour afficher plus de départs |
+  | Automatique | 4×2 | Choisit l'un de ces formats selon la taille du widget et le sens suivi |
 
   Le temps d'attente indique « 3 min », « Imminent », « À quai » ou « Supprimé » ; les retards et
   les échecs d'actualisation sont signalés en couleur. La liste affiche aussi l'heure, la voie et le
@@ -61,8 +64,8 @@ seule une fois le sens choisi). Adaptez la fréquence d'actualisation à votre q
 ## Utilisation
 
 1. Ouvrir l'application et enregistrer la clé API.
-2. Ajouter le widget « Prochains passages » sur l'écran d'accueil (appui long → Widgets → Temps réel
-   IDF, ou bouton « Ajouter un widget » de l'application).
+2. Ajouter le format de son choix sur l'écran d'accueil (appui long → Widgets → Temps réel IDF). Le
+   bouton « Ajouter un widget » de l'application ajoute le widget automatique.
 3. Choisir le mode, la ligne, l'arrêt puis le ou les sens, et enregistrer.
 
 ## Détails techniques

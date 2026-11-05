@@ -31,6 +31,8 @@ import fr.trprim.siri.data.TransportMode
 import fr.trprim.siri.data.WidgetConfig
 import fr.trprim.siri.data.WidgetTheme
 import fr.trprim.siri.data.normalizeLabel
+import fr.trprim.siri.widget.WidgetFormat
+import fr.trprim.siri.widget.WidgetProviders
 import fr.trprim.siri.widget.WidgetUpdater
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -449,11 +451,21 @@ class ConfigureActivity : Activity() {
         }
     }
 
-    /** Coche les sens déjà choisis lors d'une précédente configuration du même arrêt. */
+    /** Format choisi dans la liste des widgets du lanceur (null pour l'entrée automatique). */
+    private fun chosenFormat(): WidgetFormat? = WidgetProviders.formatOf(
+        AppWidgetManager.getInstance(this).getAppWidgetInfo(widgetId)?.provider?.className,
+    )
+
+    /**
+     * Coche les sens déjà choisis lors d'une précédente configuration du même arrêt, ou « Tous les
+     * sens » pour un nouveau widget dont le format affiche les deux sens.
+     */
     private fun preselect(allItem: RowItem, optionItems: List<RowItem>, l: Line, s: Stop) {
         val previous = existing?.takeIf { it.line.id == l.id && it.stop.stopIds == s.stopIds }?.directions
         if (previous == null) {
-            if (directionOptions.none { it.key != null }) allItem.checked = true
+            if (chosenFormat()?.showsBothDirections == true || directionOptions.none { it.key != null }) {
+                allItem.checked = true
+            }
             return
         }
         if (s.stopIds.all { previous[it]?.isEmpty() == true }) {

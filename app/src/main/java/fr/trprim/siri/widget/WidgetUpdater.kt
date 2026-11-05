@@ -42,8 +42,10 @@ object WidgetUpdater {
 
     private val mutex = Mutex()
 
-    fun widgetIds(context: Context): IntArray =
-        AppWidgetManager.getInstance(context).getAppWidgetIds(WidgetRenderer.providerComponent(context))
+    fun widgetIds(context: Context): IntArray {
+        val manager = AppWidgetManager.getInstance(context)
+        return WidgetProviders.components(context).flatMap { manager.getAppWidgetIds(it).asList() }.toIntArray()
+    }
 
     /** Redessine un widget à partir de l'état en cache (sans réseau). */
     fun render(context: Context, widgetId: Int, refreshing: Boolean = false) {
@@ -59,6 +61,7 @@ object WidgetUpdater {
                     hasApiKey = prefs.hasApiKey,
                     refreshing = refreshing,
                     options = manager.getAppWidgetOptions(widgetId),
+                    fixedFormat = WidgetProviders.formatOf(manager.getAppWidgetInfo(widgetId)?.provider?.className),
                     renderScale = quality,
                 )
                 manager.updateAppWidget(widgetId, views)
@@ -182,10 +185,6 @@ object WidgetUpdater {
         }
         // RTC (non réveillant) : rien n'est exécuté tant que l'écran est éteint.
         alarmManager.set(AlarmManager.RTC, System.currentTimeMillis() + TICK_INTERVAL_MS, pending)
-    }
-
-    fun cancelTick(context: Context) {
-        context.getSystemService(AlarmManager::class.java)?.cancel(tickIntent(context))
     }
 
     /** Demande une actualisation immédiate (depuis l'application). */

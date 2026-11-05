@@ -83,6 +83,44 @@ class WidgetContentTest {
     }
 
     @Test
+    fun eachWidgetEntryImposesItsFormat() {
+        assertEquals(WidgetFormat.PASTILLE, WidgetProviders.formatOf(PastilleWidgetProvider::class.java.name))
+        assertEquals(WidgetFormat.UN_SENS, WidgetProviders.formatOf(UnSensWidgetProvider::class.java.name))
+        assertEquals(WidgetFormat.GRAND_CHIFFRE, WidgetProviders.formatOf(GrandChiffreWidgetProvider::class.java.name))
+        assertEquals(WidgetFormat.FRISE, WidgetProviders.formatOf(FriseWidgetProvider::class.java.name))
+        assertEquals(WidgetFormat.COMPACT, WidgetProviders.formatOf(CompactWidgetProvider::class.java.name))
+        assertEquals(WidgetFormat.DEUX_SENS, WidgetProviders.formatOf(DeuxSensWidgetProvider::class.java.name))
+        assertEquals(WidgetFormat.DEUX_SENS_LARGE, WidgetProviders.formatOf(DeuxSensLargeWidgetProvider::class.java.name))
+        assertEquals(WidgetFormat.TRAIN, WidgetProviders.formatOf(TrainWidgetProvider::class.java.name))
+        assertEquals(WidgetFormat.LISTE, WidgetProviders.formatOf(ListeWidgetProvider::class.java.name))
+        // L'entrée automatique, et les widgets déjà posés avec elle, n'imposent aucun format.
+        assertNull(WidgetProviders.formatOf(DeparturesWidgetProvider::class.java.name))
+        assertNull(WidgetProviders.formatOf(null))
+    }
+
+    @Test
+    fun chosenFormatWinsOverSizeAndDirection() {
+        val chosen = WidgetModels.build(
+            config(metro, oneDirection), state(dep("A", 5)), hasApiKey = true, refreshing = false,
+            widthDp = 348f, heightDp = 192f, now = now, fixedFormat = WidgetFormat.PASTILLE,
+        )
+        assertEquals(WidgetFormat.PASTILLE, chosen.format)
+        assertTrue("La couleur automatique suit le format choisi", chosen.palette.isLine)
+
+        val automatic = WidgetModels.build(
+            config(metro, oneDirection), state(dep("A", 5)), hasApiKey = true, refreshing = false,
+            widthDp = 84f, heightDp = 92f, now = now,
+        )
+        assertEquals(WidgetFormat.PASTILLE, automatic.format)
+    }
+
+    @Test
+    fun twoDirectionFormatsAreIdentified() {
+        val both = WidgetFormat.entries.filter { it.showsBothDirections }
+        assertEquals(listOf(WidgetFormat.COMPACT, WidgetFormat.DEUX_SENS, WidgetFormat.DEUX_SENS_LARGE), both)
+    }
+
+    @Test
     fun singleDirectionDetection() {
         assertTrue(config(metro, oneDirection).isSingleDirection)
         assertFalse(config(metro, allDirections).isSingleDirection)

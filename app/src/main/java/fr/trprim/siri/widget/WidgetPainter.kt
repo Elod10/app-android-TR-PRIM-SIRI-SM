@@ -125,7 +125,13 @@ private class Scene(
             WidgetFormat.PASTILLE -> pastille(first)
             WidgetFormat.UN_SENS -> unSens(first)
             WidgetFormat.GRAND_CHIFFRE -> grandChiffre(first)
-            WidgetFormat.FRISE -> frise(first)
+            WidgetFormat.FRISE -> {
+                // Agrandie en hauteur, la frise reste centrée.
+                canvas.save()
+                canvas.translate(0f, (h - WidgetFormat.FRISE.baseHeight) / 2f)
+                frise(first)
+                canvas.restore()
+            }
             WidgetFormat.COMPACT -> compact()
             WidgetFormat.DEUX_SENS -> deuxSens()
             WidgetFormat.TRAIN -> train(first)
@@ -429,7 +435,7 @@ private class Scene(
         header(padX, w - padX, 14f, 30f, 30f, 20f, 13.5f, 10f)
         val gap = 16f
         val columnWidth = (w - 2f * padX - gap) / 2f
-        val top = h - 10f - 124f
+        val top = h - 10f - 130f
         val span = model.groups.maxOfOrNull { group ->
             val stops = group.railPassages
             stops.last().railMinutes - stops.first().railMinutes
@@ -453,7 +459,7 @@ private class Scene(
         if (first.isDelayed && !model.stale && heroWidth + 6f + lateTagWidth("+${first.delayMinutes} min", 13.5f) <= width) {
             lateTag("+${first.delayMinutes} min", x + width, base, 13.5f)
         }
-        val railTop = top + 92f
+        val railTop = top + 98f
         if (model.stale && showStaleMessage) {
             multiline(staleMessage, x, railTop, width, 16f, 14.5f, Face.SEMI, p.late, 2)
         } else {

@@ -11,8 +11,7 @@
     <color name="screen_background">#F2F4F7</color>
     <color name="divider">#1F000000</color>
 
-    <!-- Aperçu et chargement du widget : le widget lui-même est dessiné par WidgetPainter. -->
+    <!-- Chargement du widget : le widget lui-même est dessiné par WidgetPainter. -->
     <color name="widget_bg">#15171C</color>
-    <color name="widget_text">#F5F3EC</color>
     <color name="widget_text_secondary">#B7BBC3</color>
 </resources>

@@ -38,13 +38,121 @@
         <receiver
             android:name=".widget.DeparturesWidgetProvider"
             android:exported="true"
-            android:label="@string/widget_name">
+            android:label="@string/widget_auto_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/departures_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.PastilleWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_pastille_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_pastille" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.UnSensWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_un_sens_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_un_sens" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.GrandChiffreWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_grand_chiffre_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_grand_chiffre" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.FriseWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_frise_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_frise" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.CompactWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_compact_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_compact" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.DeuxSensWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_deux_sens_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_deux_sens" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.DeuxSensLargeWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_deux_sens_large_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_deux_sens_large" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.TrainWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_train_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_train" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.ListeWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_liste_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_liste" />
         </receiver>
 
         <receiver
