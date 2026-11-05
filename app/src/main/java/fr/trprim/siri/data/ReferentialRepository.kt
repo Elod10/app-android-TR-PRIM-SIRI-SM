@@ -12,22 +12,28 @@ import java.io.IOException
  * Référentiel des lignes et arrêts, avec cache disque (7 jours) pour éviter de
  * retélécharger les listes à chaque configuration. En cas d'erreur réseau, le cache
  * périmé est utilisé s'il existe.
+ *
+ * Les données viennent de Tracéo sans clé, de l'open data IDFM avec une clé.
  */
 class ReferentialRepository(context: Context) {
 
     private val dir = File(context.applicationContext.cacheDir, "referential").apply { mkdirs() }
+    private val prefs = Prefs(context)
+    private val traceo = TraceoClient()
 
     suspend fun lines(mode: TransportMode, forceRefresh: Boolean = false): List<Line> = withContext(Dispatchers.IO) {
-        val cacheName = "lines_" + mode.apiModes.joinToString("_") + ".json"
-        val all = cached(cacheName, forceRefresh, Line::fromJson, Line::toJson) {
-            Referential.downloadLines(mode.apiModes)
+        val hasKey = prefs.hasApiKey
+        val all = cached(DataSources.linesCacheName(mode, hasKey), forceRefresh, Line::fromJson, Line::toJson) {
+            if (hasKey) Referential.downloadLines(mode.apiModes) else traceo.lines()
         }
-        all.filter { mode.accepts(it) }
+        all.filter { mode.includes(it) }
     }
 
     suspend fun stops(lineId: String, forceRefresh: Boolean = false): List<Stop> = withContext(Dispatchers.IO) {
-        val cacheName = "stops_" + lineId.replace(Regex("[^A-Za-z0-9_-]"), "_") + ".json"
-        cached(cacheName, forceRefresh, Stop::fromJson, Stop::toJson) { Referential.downloadStops(lineId) }
+        val hasKey = prefs.hasApiKey
+        cached(DataSources.stopsCacheName(lineId, hasKey), forceRefresh, Stop::fromJson, Stop::toJson) {
+            if (hasKey) Referential.downloadStops(lineId) else traceo.stops(lineId)
+        }
     }
 
     fun clear() {

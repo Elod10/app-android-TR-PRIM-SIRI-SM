@@ -12,7 +12,6 @@ import fr.trprim.siri.R
 import fr.trprim.siri.data.WidgetConfig
 import fr.trprim.siri.data.WidgetState
 import fr.trprim.siri.ui.ConfigureActivity
-import fr.trprim.siri.ui.MainActivity
 
 /** Construit les RemoteViews d'un widget à partir de sa configuration et de son dernier état. */
 object WidgetRenderer {
@@ -43,11 +42,8 @@ object WidgetRenderer {
         val views = RemoteViews(context.packageName, R.layout.widget_canvas)
         views.setImageViewBitmap(R.id.widget_image, WidgetPainter.paint(context, model, width, height, density))
         views.setContentDescription(R.id.widget_image, describe(context, model))
-        val click = when {
-            config == null -> configurePendingIntent(context, widgetId)
-            !hasApiKey -> mainPendingIntent(context)
-            else -> refreshPendingIntent(context, widgetId)
-        }
+        val needsConfiguration = model.notice?.kind == NoticeKind.NOT_CONFIGURED || model.notice?.kind == NoticeKind.RECONFIGURE
+        val click = if (needsConfiguration) configurePendingIntent(context, widgetId) else refreshPendingIntent(context, widgetId)
         views.setOnClickPendingIntent(R.id.widget_root, click)
         return views
     }
@@ -73,8 +69,8 @@ object WidgetRenderer {
         return when (notice.kind) {
             NoticeKind.NOT_CONFIGURED ->
                 context.getString(R.string.widget_not_configured) + ". " + context.getString(R.string.widget_tap_to_configure)
-            NoticeKind.MISSING_KEY ->
-                context.getString(R.string.widget_missing_key_title) + ". " + context.getString(R.string.widget_missing_key_body)
+            NoticeKind.RECONFIGURE ->
+                context.getString(R.string.widget_reconfigure_title) + ". " + context.getString(R.string.widget_reconfigure_body)
             NoticeKind.LOADING -> context.getString(R.string.widget_loading)
             NoticeKind.NO_DEPARTURE -> model.stopName + ". " + context.getString(R.string.widget_no_departure)
             NoticeKind.ERROR -> model.stopName + ". " + notice.detail.orEmpty()
@@ -100,15 +96,6 @@ object WidgetRenderer {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         return PendingIntent.getActivity(
             context, widgetId, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-    }
-
-    private fun mainPendingIntent(context: Context): PendingIntent {
-        val intent = Intent(context, MainActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        return PendingIntent.getActivity(
-            context, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }

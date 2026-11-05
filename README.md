@@ -1,22 +1,32 @@
-# Temps réel IDF — widget Android (PRIM / SIRI StopMonitoring)
+# Temps réel IDF — widget Android (Tracéo / PRIM)
 
-Application Android (APK) fournissant un **widget d'écran d'accueil** qui affiche en temps réel les
-prochains passages d'une ligne à un arrêt d'Île-de-France, à partir de l'API
-**PRIM d'Île-de-France Mobilités** (requête unitaire « Prochains passages », format SIRI Lite
-*StopMonitoring*).
+Application Android (APK) fournissant un **widget d'écran d'accueil** qui affiche les prochains
+passages d'une ligne à un arrêt d'Île-de-France. Il fonctionne **sans clé ni compte**, avec deux sources
+de données :
+
+| | Sans clé (par défaut) | Avec une clé API PRIM |
+|---|---|---|
+| Lignes et arrêts | [Tracéo](https://gotraceo.fr) | Open data IDFM |
+| Passages | Relevé SIRI ET de Tracéo, renouvelé environ toutes les 2 minutes | PRIM en SIRI *StopMonitoring*, appelé par le téléphone |
+| Heure affichée | Heure du relevé, avec la mention « Tracéo » | Heure de la dernière actualisation |
+| Actualisation la plus rapide | 2 minutes | 1 minute |
+| Voie, câble et funiculaire | Non | Oui |
 
 ## Fonctionnalités
 
-- **Clé API PRIM** saisie dans l'application (écran principal ou première étape de configuration),
-  avec bouton « Tester ». Elle est stockée uniquement sur le téléphone (sauvegarde Android désactivée).
+- **Clé API PRIM facultative**, saisie dans l'application (écran principal ou lien sous la liste des
+  modes), avec bouton « Tester ». Elle est stockée uniquement sur le téléphone (sauvegarde Android
+  désactivée) et n'est jamais envoyée à Tracéo. Vider le champ et enregistrer la retire : les widgets
+  reviennent sur Tracéo.
 - **Choix de l'arrêt via un menu en 4 étapes** : mode de transport → ligne → arrêt → sens.
-  - Modes : Métro, RER, Train/Transilien, Tramway, Bus/Noctilien, Câble/Funiculaire.
-  - Lignes et arrêts issus des référentiels open data IDFM (`referentiel-des-lignes`,
-    `arrets-lignes`), avec recherche, pastilles aux couleurs officielles et cache local de 7 jours.
-  - **Sens** : l'application interroge PRIM en temps réel sur chaque point d'arrêt (quai) de l'arrêt
-    choisi et propose les sens observés (« Vers Porte de Clignancourt »…), ou « Tous les sens ».
-    Plusieurs sens/destinations peuvent être cochés (utile pour les branches du RER), sauf sur les
-    widgets qui n'affichent qu'un sens : Pastille, Un sens, Grand chiffre, Frise et Train et voie.
+  - Modes : Métro, RER, Train/Transilien, Tramway, Bus/Noctilien, et Câble/Funiculaire avec une clé.
+  - Lignes et arrêts de Tracéo ou, avec une clé, des référentiels open data IDFM
+    (`referentiel-des-lignes`, `arrets-lignes`), avec recherche, pastilles aux couleurs officielles et
+    cache local de 7 jours.
+  - **Sens** : l'application lit les prochains passages de l'arrêt choisi et propose les sens observés
+    (« Vers Porte de Clignancourt »…), ou « Tous les sens ». Plusieurs sens/destinations peuvent être
+    cochés (utile pour les branches du RER), sauf sur les widgets qui n'affichent qu'un sens : Pastille,
+    Un sens, Grand chiffre, Frise et Train et voie.
 - **Dix widgets au choix**, depuis la liste des widgets du lanceur ou l'application, tous
   redimensionnables :
 
@@ -34,15 +44,20 @@ prochains passages d'une ligne à un arrêt d'Île-de-France, à partir de l'API
   | Automatique | 4×2 | Choisit l'un de ces formats selon la taille du widget et le sens suivi |
 
   Le temps d'attente indique « 3 min », « Imminent », « À quai » ou « Supprimé » ; les retards et
-  les échecs d'actualisation sont signalés en couleur. La liste affiche aussi l'heure, la voie et le
-  code mission des trains.
+  les échecs d'actualisation sont signalés en couleur. La liste affiche aussi l'heure, la voie (avec
+  une clé) et le code mission des trains.
+- **Relevé daté** : sans clé, le widget indique l'heure du relevé et la mention « Tracéo », pas l'heure
+  du téléphone, et signale un relevé ancien (plus de 150 s, ce qui est normal entre 2 h et 5 h). Le
+  format Pastille manque de place : il n'indique que l'heure, et la mention reste dans sa description
+  pour les lecteurs d'écran.
 - **Couleur du widget**, au choix : automatique (couleur de la ligne pour les formats à grand chiffre,
   fond sombre pour les autres), sombre, clair ou couleur de la ligne. La liste reste en sombre ou en
   clair.
 - **Actualisation** : toucher le widget l'actualise immédiatement ; actualisation automatique
   configurable (manuelle, 1, 2, 5, 10, 15 ou 30 min) **uniquement écran allumé** (alarme exacte mais
-  non réveillante : aucune requête quand le téléphone est en veille). Les temps d'attente sont
-  recalculés chaque minute sans requête réseau.
+  non réveillante : aucune requête quand le téléphone est en veille). Sans clé, « 1 min » vaut 2 min,
+  car le relevé de Tracéo ne change pas plus vite. Les temps d'attente sont recalculés chaque minute
+  sans requête réseau.
 - Plusieurs widgets possibles (un arrêt/sens différent par widget), modifiables via l'écran principal
   ou l'option « Reconfigurer » du lanceur (Android 12+).
 
@@ -54,7 +69,10 @@ prochains passages d'une ligne à un arrêt d'Île-de-France, à partir de l'API
 2. Sur le téléphone, autoriser l'installation d'applications de sources inconnues puis ouvrir l'APK.
 3. Android 8.0 (API 26) minimum.
 
-## Obtenir une clé API PRIM
+## Obtenir une clé API PRIM (facultatif)
+
+La clé n'est pas nécessaire. Elle fait interroger PRIM directement par le téléphone, ajoute la voie, le
+câble et le funiculaire, et permet une actualisation chaque minute.
 
 1. Créer un compte gratuit sur <https://prim.iledefrance-mobilites.fr>.
 2. Dans votre espace, générer un **jeton d'authentification** (clé API) et le copier.
@@ -63,26 +81,40 @@ prochains passages d'une ligne à un arrêt d'Île-de-France, à partir de l'API
 Chaque actualisation d'un widget consomme **une requête par point d'arrêt** retenu (en général une
 seule une fois le sens choisi). Adaptez la fréquence d'actualisation à votre quota PRIM.
 
+Un widget créé avec une clé porte sur un arrêt du référentiel IDFM, inconnu de Tracéo : si la clé est
+retirée, il demande à être reconfiguré. Un widget créé sans clé passe sur PRIM dès qu'une clé est
+ajoutée et garde son sens.
+
 ## Utilisation
 
-1. Ouvrir l'application et enregistrer la clé API.
-2. Ajouter le format de son choix sur l'écran d'accueil : appui long → Widgets → Temps réel IDF, ou
+1. Ajouter le format de son choix sur l'écran d'accueil : appui long → Widgets → Temps réel IDF, ou
    bouton « Ajouter un widget » de l'application.
-3. Choisir le mode, la ligne, l'arrêt puis le ou les sens, et enregistrer.
+2. Choisir le mode, la ligne, l'arrêt puis le ou les sens, et enregistrer.
+
+## Confidentialité
+
+- **Sans clé**, le téléphone envoie à gotraceo.fr la ligne et l'arrêt demandés, et son adresse IP figure
+  dans les journaux du serveur, conservés 14 jours. Pas de compte ni d'identifiant d'appareil.
+- **Avec une clé**, le téléphone interroge directement PRIM et l'open data IDFM. La clé n'est jamais
+  envoyée à Tracéo.
 
 ## Détails techniques
 
-| Élément | Source |
-| --- | --- |
-| Temps réel | `GET https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=…&LineRef=STIF:Line::Cxxxxx:` avec l'en-tête `apikey` |
-| Lignes | `https://data.iledefrance-mobilites.fr/api/explore/v2.1/catalog/datasets/referentiel-des-lignes/exports/json` |
-| Arrêts d'une ligne | `https://data.iledefrance-mobilites.fr/api/explore/v2.1/catalog/datasets/arrets-lignes/exports/json` |
+| Élément | Sans clé | Avec une clé |
+| --- | --- | --- |
+| Passages | `GET https://gotraceo.fr/api/widget/passages?line=line:IDFM:Cxxxxx&stop=stop_area:IDFM:xxxxx` | `GET https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring?MonitoringRef=…&LineRef=STIF:Line::Cxxxxx:` avec l'en-tête `apikey` |
+| Lignes | `GET https://gotraceo.fr/api/lines` | `https://data.iledefrance-mobilites.fr/api/explore/v2.1/catalog/datasets/referentiel-des-lignes/exports/json` |
+| Arrêts d'une ligne | `GET https://gotraceo.fr/api/stations?line=line:IDFM:Cxxxxx`, à la configuration seulement | `https://data.iledefrance-mobilites.fr/api/explore/v2.1/catalog/datasets/arrets-lignes/exports/json` |
 
 - Les identifiants du référentiel sont convertis en `MonitoringRef` SIRI :
   `IDFM:monomodalStopPlace:58879` (zone d'arrêt, lignes ferrées) → `STIF:StopArea:SP:58879:`,
   `IDFM:463158` (arrêt/quai) → `STIF:StopPoint:Q:463158:`. Si PRIM refuse un identifiant ou le couple
   MonitoringRef/LineRef, le client essaie l'autre format puis la requête sans `LineRef` (filtrage de
-  la ligne en local).
+  la ligne en local). Une zone d'arrêt de Tracéo, `stop_area:IDFM:71348`, devient
+  `STIF:StopArea:SP:71348:`.
+- Sur la source Tracéo, les arrivées au terminus sont retirées. Un 429 ou un 503 garde les dernières
+  données ; un 503 redemande au plus une fois par ligne et par processus les arrêts de la ligne, puis
+  réessaie une fois. Un 404 demande de reconfigurer le widget.
 - Les arrêts de même nom dans la même commune (un quai par sens) sont regroupés ; le choix du sens
   détermine le(s) quai(s) interrogé(s) et, pour les zones d'arrêt ferroviaires, les directions
   (`DirectionName`, sinon `DestinationName`) retenues.
@@ -92,7 +124,7 @@ seule une fois le sens choisi). Adaptez la fréquence d'actualisation à votre q
 
 ```
 app/src/main/java/fr/trprim/siri/
-├── data/     modèles, client PRIM (SIRI), parseur SIRI Lite, référentiel IDFM, sens, préférences
+├── data/     modèles, clients Tracéo et PRIM (SIRI), choix de la source, parseur SIRI Lite, référentiel IDFM, sens, préférences
 ├── widget/   AppWidgetProvider, choix du format et des couleurs, dessin, actualisation et planification
 └── ui/       écran principal (clé, fréquence, widgets) et assistant de configuration
 ```
@@ -102,7 +134,7 @@ app/src/main/java/fr/trprim/siri/
 Prérequis : JDK 17 et SDK Android (plateforme 35).
 
 ```bash
-./gradlew testDebugUnitTest   # tests unitaires (parseur SIRI, sens, référentiel, client PRIM)
+./gradlew testDebugUnitTest   # tests unitaires (parseur SIRI, sens, référentiel, clients PRIM et Tracéo)
 ./gradlew assembleRelease     # APK : app/build/outputs/apk/release/app-release.apk
 ```
 
@@ -144,5 +176,8 @@ License 1.1 ([texte de la licence](app/src/main/assets/licenses/barlow-OFL.txt))
 
 ## Données
 
-Données © Île-de-France Mobilités : API PRIM (licence Mobilités) et référentiels open data
-(licence ODbL). Cette application n'est pas affiliée à Île-de-France Mobilités.
+Données © Île-de-France Mobilités, via Tracéo (gotraceo.fr).
+
+Selon la page Licences de PRIM, le temps réel relève de la Licence Mobilité, les lignes et arrêts de la
+licence ouverte Etalab ou de l'ODbL. Avec une clé, les données viennent directement de l'API PRIM et des
+référentiels open data IDFM. Cette application n'est affiliée ni à Île-de-France Mobilités ni à Tracéo.

@@ -21,10 +21,13 @@ import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import fr.trprim.siri.R
+import fr.trprim.siri.data.DataSources
 import fr.trprim.siri.data.Directions
+import fr.trprim.siri.data.PassageRoute
 import fr.trprim.siri.data.Prefs
 import fr.trprim.siri.data.PrimClient
 import fr.trprim.siri.data.PrimException
+import fr.trprim.siri.data.WidgetState
 import fr.trprim.siri.widget.BadgeRenderer
 import fr.trprim.siri.widget.DepartureFormat
 import fr.trprim.siri.widget.WidgetProviders
@@ -35,7 +38,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** Écran principal : clé API PRIM, fréquence d'actualisation et liste des widgets. */
+/** Écran principal : clé API PRIM facultative, fréquence d'actualisation et liste des widgets. */
 class MainActivity : Activity() {
 
     private val scope = MainScope()
@@ -100,24 +103,25 @@ class MainActivity : Activity() {
 
     // --- Clé API -----------------------------------------------------------------------------
 
-    private fun saveKey(): Boolean {
+    /** Enregistre la clé saisie. Un champ vide retire la clé : les widgets reviennent sur Tracéo. */
+    private fun saveKey() {
         val key = keyInput.text.toString().trim()
-        if (key.isEmpty()) {
-            showKeyStatus(getString(R.string.main_key_empty), error = true)
-            return false
-        }
         val changed = key != prefs.apiKey
         prefs.apiKey = key
-        showKeyStatus(getString(R.string.main_key_saved), error = false)
+        showKeyStatus(getString(if (key.isEmpty()) R.string.main_key_removed else R.string.main_key_saved), error = false)
         if (changed) {
             WidgetUpdater.renderAll(this)
             WidgetUpdater.requestRefresh(this)
         }
-        return true
     }
 
     private fun testKey() {
-        if (!saveKey()) return
+        // « Tester » avec un champ vide ne doit pas retirer la clé enregistrée.
+        if (keyInput.text.isNullOrBlank()) {
+            showKeyStatus(getString(R.string.main_key_empty), error = true)
+            return
+        }
+        saveKey()
         val key = prefs.apiKey
         keyTest.isEnabled = false
         showKeyStatus(getString(R.string.main_key_testing), error = false)
@@ -207,13 +211,13 @@ class MainActivity : Activity() {
                 subtitle.text = UiText.lineTitle(config.line) + " · " +
                     config.directionLabel.ifBlank { Directions.ALL_DIRECTIONS }
                 val upcoming = state?.let { Directions.upcoming(it.departures, now) }.orEmpty()
+                val reconfigure = DataSources.route(config.stop.stopIds, prefs.hasApiKey) == PassageRoute.RECONFIGURE
+                if (reconfigure) refresh.visibility = View.GONE
                 departures.text = when {
-                    !prefs.hasApiKey -> getString(R.string.key_required)
+                    reconfigure -> getString(R.string.widget_reconfigure_title)
                     upcoming.isNotEmpty() -> upcoming.take(4).joinToString("\n") { d ->
                         DepartureFormat.waitText(d, now, config.line.mode) + "  ·  " + d.destination
-                    } + (state?.fetchedAt?.takeIf { it > 0 }?.let {
-                        "\n" + getString(R.string.widget_updated_at, DepartureFormat.clock(it, withSeconds = true))
-                    } ?: "")
+                    } + state?.let(::dataTimeLine).orEmpty()
                     state?.error != null -> state.error
                     state != null -> getString(R.string.widget_no_departure)
                     else -> getString(R.string.main_widget_no_data)
@@ -230,6 +234,18 @@ class MainActivity : Activity() {
                 if (index == ids.lastIndex) View.GONE else View.VISIBLE
             widgetsContainer.addView(view)
         }
+    }
+
+    /** Fin du résumé d'un widget : heure du relevé ou, en direct, de la dernière mise à jour. */
+    private fun dataTimeLine(state: WidgetState): String {
+        val at = if (state.isSnapshot) state.dataAt else state.fetchedAt
+        val time = at?.takeIf { it > 0 }?.let { DepartureFormat.clock(it, withSeconds = true) } ?: return ""
+        val label = when {
+            !state.isSnapshot -> R.string.widget_updated_at
+            state.fresh == false -> R.string.widget_snapshot_old
+            else -> R.string.widget_snapshot_at
+        }
+        return "\n" + getString(label, time)
     }
 
     /** Propose les widgets disponibles, puis demande au lanceur d'ajouter celui qui est choisi. */

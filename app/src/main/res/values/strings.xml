@@ -26,14 +26,16 @@
     <string name="widget_liste_description">Les prochains départs avec mission et voie ; s\'allonge pour en afficher plus</string>
     <string name="widget_not_configured">Widget non configuré</string>
     <string name="widget_tap_to_configure">Touchez pour choisir la ligne, l\'arrêt et le sens.</string>
-    <string name="widget_missing_key_title">Clé API PRIM manquante</string>
-    <string name="widget_missing_key_body">Touchez pour la saisir dans l\'application.</string>
+    <string name="widget_reconfigure_title">Reconfigurez ce widget</string>
+    <string name="widget_reconfigure_body">Cet arrêt demande une clé API. Touchez pour choisir à nouveau la ligne et l\'arrêt.</string>
     <string name="widget_loading">Chargement…</string>
     <string name="widget_no_departure">Aucun passage prévu pour le moment</string>
     <string name="widget_updated_at">Mis à jour à %1$s</string>
+    <string name="widget_snapshot_at">Relevé Tracéo de %1$s</string>
+    <string name="widget_snapshot_old">Relevé Tracéo de %1$s : ancien</string>
     <string name="widget_stale">Actualisation impossible</string>
     <string name="widget_short_not_configured">Non configuré</string>
-    <string name="widget_short_missing_key">Clé API manquante</string>
+    <string name="widget_short_reconfigure">À reconfigurer</string>
     <string name="widget_short_no_departure">Aucun passage</string>
     <string name="widget_short_error">Erreur</string>
     <string name="cd_line_badge">Ligne</string>
@@ -44,19 +46,20 @@
     <string name="theme_line">Couleur de la ligne</string>
 
     <!-- Écran principal -->
-    <string name="main_key_title">Clé API PRIM</string>
-    <string name="main_key_help">Créez un compte gratuit sur le portail PRIM d\'Île-de-France Mobilités, puis générez et copiez votre jeton d\'authentification (clé API). La clé est stockée uniquement sur ce téléphone et sert aux requêtes temps réel SIRI StopMonitoring.</string>
+    <string name="main_key_title">Clé API PRIM (facultative)</string>
+    <string name="main_key_help">Sans clé, les widgets affichent les passages relevés par Tracéo (gotraceo.fr), environ toutes les 2 minutes. Avec une clé, votre téléphone interroge directement PRIM en temps réel et l\'application propose aussi le câble et le funiculaire. Pour en obtenir une, créez un compte gratuit sur le portail PRIM d\'Île-de-France Mobilités, puis générez et copiez votre jeton d\'authentification. La clé est stockée uniquement sur ce téléphone et n\'est jamais envoyée à Tracéo. Pour la retirer, videz le champ puis enregistrez.</string>
     <string name="main_key_hint">Collez votre clé API PRIM</string>
     <string name="main_key_show">Afficher la clé</string>
     <string name="main_key_save">Enregistrer</string>
     <string name="main_key_test">Tester</string>
     <string name="main_key_open_portal">Ouvrir le portail PRIM</string>
     <string name="main_key_saved">Clé enregistrée</string>
+    <string name="main_key_removed">Clé retirée : les données viennent de Tracéo</string>
     <string name="main_key_testing">Test en cours…</string>
     <string name="main_key_ok">Clé valide : l\'API PRIM répond ✔</string>
     <string name="main_key_empty">Saisissez d\'abord une clé</string>
     <string name="main_refresh_title">Actualisation automatique</string>
-    <string name="main_refresh_help">Les widgets ne sont actualisés que lorsque l\'écran est allumé (aucune requête téléphone en veille). Touchez un widget pour l\'actualiser immédiatement. Chaque actualisation consomme une requête par point d\'arrêt sur votre quota PRIM.</string>
+    <string name="main_refresh_help">Les widgets ne sont actualisés que lorsque l\'écran est allumé (aucune requête téléphone en veille). Touchez un widget pour l\'actualiser immédiatement. Sans clé, le relevé de Tracéo ne change pas plus vite que toutes les 2 minutes : « Chaque minute » vaut alors 2 minutes. Avec une clé, chaque actualisation consomme une requête par point d\'arrêt sur votre quota PRIM.</string>
     <string name="main_widgets_title">Mes widgets</string>
     <string name="main_widgets_empty">Aucun widget sur l\'écran d\'accueil. Choisissez le format de votre choix dans la liste des widgets de votre lanceur (Temps réel IDF), ou utilisez le bouton ci-dessous.</string>
     <string name="main_add_widget">Ajouter un widget à l\'écran d\'accueil</string>
@@ -67,14 +70,14 @@
     <string name="main_widget_refresh">Actualiser</string>
     <string name="main_widget_not_configured">Widget n° %1$d non configuré</string>
     <string name="main_widget_no_data">Pas encore de données</string>
-    <string name="main_about">Données : Île-de-France Mobilités. Temps réel : API PRIM « Prochains passages » (SIRI Lite StopMonitoring). Lignes et arrêts : référentiels open data IDFM (licence ODbL).</string>
+    <string name="main_about">Données © Île-de-France Mobilités, via Tracéo (gotraceo.fr). Selon la page Licences de PRIM, le temps réel relève de la Licence Mobilité, les lignes et arrêts de la licence ouverte Etalab ou de l\'ODbL. Avec une clé : API PRIM « Prochains passages » (SIRI Lite StopMonitoring) et référentiels open data IDFM.</string>
     <string name="refresh_manual">Manuelle uniquement (toucher le widget)</string>
     <string name="refresh_every_minute">Chaque minute</string>
     <string name="refresh_every_n">Toutes les %1$d minutes</string>
 
     <!-- Configuration -->
     <string name="configure_title">Configurer le widget</string>
-    <string name="step_key">Clé API PRIM</string>
+    <string name="step_key">Clé API PRIM (facultative)</string>
     <string name="step_mode">Mode de transport</string>
     <string name="step_line">Ligne</string>
     <string name="step_stop">Arrêt</string>
@@ -82,16 +85,17 @@
     <string name="step_counter">Étape %1$d/4 · %2$s</string>
     <string name="search_line_hint">Rechercher une ligne (numéro, nom, réseau…)</string>
     <string name="search_stop_hint">Rechercher un arrêt ou une commune</string>
+    <string name="search_stop_hint_no_town">Rechercher un arrêt</string>
     <string name="loading_lines">Chargement des lignes…</string>
     <string name="loading_stops">Chargement des arrêts…</string>
-    <string name="loading_directions">Recherche des sens en temps réel…</string>
-    <string name="error_referential">Impossible de charger le référentiel IDFM.\n%1$s</string>
-    <string name="error_directions">Passages temps réel indisponibles : %1$s</string>
+    <string name="loading_directions">Recherche des sens…</string>
+    <string name="error_referential">Impossible de charger les lignes et les arrêts.\n%1$s</string>
+    <string name="error_directions">Passages indisponibles : %1$s</string>
     <string name="retry">Réessayer</string>
     <string name="no_result">Aucun résultat</string>
     <string name="no_stop">Aucun arrêt trouvé pour cette ligne</string>
-    <string name="direction_help">Choisissez le ou les sens à afficher. Ils sont détectés à partir des passages temps réel : si votre sens n\'apparaît pas (fin de service…), choisissez « Tous les sens » ou réessayez plus tard.</string>
-    <string name="direction_help_single">Ce widget affiche un seul sens : choisissez-le. Les sens sont détectés à partir des passages temps réel : si le vôtre n\'apparaît pas (fin de service…), réessayez plus tard. Pour suivre les deux sens, ajoutez plutôt un widget « Deux sens ».</string>
+    <string name="direction_help">Choisissez le ou les sens à afficher. Ils sont détectés à partir des prochains passages : si votre sens n\'apparaît pas (fin de service…), choisissez « Tous les sens » ou réessayez plus tard.</string>
+    <string name="direction_help_single">Ce widget affiche un seul sens : choisissez-le. Les sens sont détectés à partir des prochains passages : si le vôtre n\'apparaît pas (fin de service…), réessayez plus tard. Pour suivre les deux sens, ajoutez plutôt un widget « Deux sens ».</string>
     <string name="direction_all">Tous les sens</string>
     <string name="direction_all_sub">Afficher tous les passages de la ligne à cet arrêt</string>
     <string name="direction_select_one">Choisissez au moins un sens</string>
@@ -101,5 +105,7 @@
     <string name="continue_label">Continuer</string>
     <string name="saved_toast">Widget enregistré</string>
     <string name="invalid_widget">Widget introuvable</string>
-    <string name="key_required">Une clé API PRIM est nécessaire pour afficher le temps réel.</string>
+    <string name="key_optional_row">Ajouter une clé API PRIM</string>
+    <string name="key_optional_row_sub">Facultatif : interroge PRIM en temps réel et ajoute le câble et le funiculaire</string>
+    <string name="key_optional_help">La clé est facultative : sans elle, le widget affiche les passages relevés par Tracéo. Laissez le champ vide pour continuer sans clé.</string>
 </resources>

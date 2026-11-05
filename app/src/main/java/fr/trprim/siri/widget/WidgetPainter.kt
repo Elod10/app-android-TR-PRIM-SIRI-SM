@@ -113,6 +113,9 @@ private class Scene(
 
     private val staleMessage: String get() = context.getString(R.string.widget_stale)
 
+    /** Vrai si l'heure affichée mérite d'être signalée : actualisation échouée ou relevé ancien. */
+    private val timeAlert: Boolean get() = model.stale || model.oldSnapshot
+
     fun draw() {
         roundRect(0f, 0f, w, h, model.format.radius, p.background)
         val notice = model.notice
@@ -152,10 +155,13 @@ private class Scene(
         when {
             model.refreshing -> textRight("…", tagRight, tagBase, Face.MEDIUM, 12.5f, p.text2)
             model.stale -> Unit
+            model.oldSnapshot -> snapshotNote(tagRight, tagBase, 12.5f, tagRoom)
             first.isDelayed -> {
                 val delay = "+${first.delayMinutes}"
                 if (lateTagWidth(delay, 12.5f) <= tagRoom) lateTag(delay, tagRight, tagBase, 12.5f)
             }
+            // Peu de place : l'heure du relevé passe avant le passage suivant.
+            model.sourceLabel != null -> snapshotNote(tagRight, tagBase, 12.5f, tagRoom)
             next != null -> {
                 // Un numéro de ligne long ne laisse parfois de la place que pour le nombre de minutes.
                 val label = next.thenLabelFitting { measure(it, Face.MEDIUM, 12.5f) <= tagRoom }
@@ -182,7 +188,8 @@ private class Scene(
             else -> {
                 val maxWidth = w - 2f * pad - 12f
                 val name = WidgetContent.compactName(first.destination) { measure(it, Face.MEDIUM, 12.5f) <= maxWidth }
-                arrow(pad, footCy, 9f, p.text2)
+                // Sur la couleur de ligne, seul ce triangle distingue un relevé ancien.
+                if (model.oldSnapshot) warning(pad, footCy, 10f, p.late) else arrow(pad, footCy, 9f, p.text2)
                 text(fit(name, Face.MEDIUM, 12.5f, maxWidth), pad + 12f, footBase, Face.MEDIUM, 12.5f, p.text2)
             }
         }
@@ -225,6 +232,9 @@ private class Scene(
             cancelledFace = Face.SEMI,
         )
         val heroWidth = drawHero(hero(first, spec, right - pad - rightWidth - 6f, model.stale), pad, base)
+        if (model.sourceLabel != null && !model.stale) {
+            snapshotNote(right, base - 16f, 12f, right - pad - heroWidth - 6f)
+        }
         val noteX = pad + heroWidth + 6f
         val noteLimit = right - rightWidth - 4f
         val mission = first.mission
@@ -241,9 +251,12 @@ private class Scene(
     private fun grandChiffre(first: Passage) {
         val pad = 12f
         val cancelled = first.kind == WaitKind.CANCELLED
+        val delayed = first.isDelayed && !model.stale
+        // L'en-tête reste à l'heure du relevé : le retard passe alors à côté du grand chiffre.
+        val delayBesideHero = delayed && model.sourceLabel != null
         header(
             pad, w - pad, pad, 28f, 28f, 17f, 12.5f, 8f,
-            tag = if (first.isDelayed && !model.stale) "+${first.delayMinutes} min" else null,
+            tag = if (delayed && !delayBesideHero) "+${first.delayMinutes} min" else null,
         )
         destination(
             WidgetContent.shortName(first.destination), pad, 45f, 17f, 13f, 10f, 3f,
@@ -257,7 +270,12 @@ private class Scene(
         val base = baseline(64f, 76f, 88f)
         val hero = hero(first, spec, w - 2f * pad, model.stale)
         val heroWidth = drawHero(hero, pad, base)
-        if (first.kind == WaitKind.MINUTES && !model.stale) {
+        if (delayBesideHero) {
+            val room = w - 2f * pad - heroWidth - 6f
+            listOf("+${first.delayMinutes} min", "+${first.delayMinutes}")
+                .firstOrNull { lateTagWidth(it, 13f) <= room }
+                ?.let { lateTag(it, w - pad, base, 13f) }
+        } else if (first.kind == WaitKind.MINUTES && !model.stale) {
             val clockWidth = measure(first.clock, Face.REGULAR, 14f)
             if (pad + heroWidth + 6f + clockWidth <= w - pad) {
                 textRight(first.clock, w - pad, base, Face.REGULAR, 14f, p.text3)
@@ -349,10 +367,11 @@ private class Scene(
         val stop = fit(name, Face.SEMI, 14f, 62f)
         val stopBase = baseline(stackTop + 31f, 18f, 14f)
         text(stop, center - measure(stop, Face.SEMI, 14f) / 2f, stopBase, Face.SEMI, 14f, p.text)
-        val timeColor = if (model.stale) p.late else p.text3
-        val timeFace = if (model.stale) Face.SEMI else Face.REGULAR
+        val timeColor = if (timeAlert) p.late else p.text3
+        val timeFace = if (timeAlert) Face.SEMI else Face.REGULAR
         val timeBase = baseline(stackTop + 50f, 15f, 12.5f)
-        text(model.timeLabel, center - measure(model.timeLabel, timeFace, 12.5f) / 2f, timeBase, timeFace, 12.5f, timeColor)
+        val time = sourcedTime().takeIf { measure(it, timeFace, 12.5f) <= 74f } ?: model.timeLabel
+        text(time, center - measure(time, timeFace, 12.5f) / 2f, timeBase, timeFace, 12.5f, timeColor)
 
         val rowsTop = (h - 72f) / 2f
         compactRow(model.groups.getOrNull(0), rowsTop, showStaleMessage = false)
@@ -479,7 +498,11 @@ private class Scene(
         val cancelled = first.kind == WaitKind.CANCELLED
         val badgeWidth = badge(pad, pad + 18f, 28f)
         val textX = pad + badgeWidth + 8f
-        val timeWidth = timeLabel(w - pad, pad + 14.5f, 12.5f)
+        val timeWidth = if (model.sourceLabel != null) {
+            timeLabel(w - pad, pad + 17f, 12.5f, stacked = true)
+        } else {
+            timeLabel(w - pad, pad + 14.5f, 12.5f)
+        }
         val stop = fit(model.stopName, Face.SEMI, 15.5f, w - pad - textX - timeWidth - 6f)
         text(stop, textX, baseline(pad + 1f, 18f, 15.5f), Face.SEMI, 15.5f, p.text)
         destination(
@@ -652,7 +675,7 @@ private class Scene(
                 stroke.pathEffect = null
                 iconHeight
             }
-            NoticeKind.MISSING_KEY -> {
+            NoticeKind.RECONFIGURE -> {
                 circle(pad + iconHeight / 2f, cy, iconHeight / 2f, p.surface)
                 key(pad + (iconHeight - 15f) / 2f, cy, 15f, p.late)
                 iconHeight
@@ -663,7 +686,7 @@ private class Scene(
         val title = when {
             small -> null
             notice.kind == NoticeKind.NOT_CONFIGURED -> context.getString(R.string.widget_not_configured)
-            notice.kind == NoticeKind.MISSING_KEY -> context.getString(R.string.widget_missing_key_title)
+            notice.kind == NoticeKind.RECONFIGURE -> context.getString(R.string.widget_reconfigure_title)
             else -> model.stopName
         }
         if (title != null) {
@@ -673,7 +696,7 @@ private class Scene(
 
         val body = when (notice.kind) {
             NoticeKind.NOT_CONFIGURED -> if (small) R.string.widget_short_not_configured else R.string.widget_tap_to_configure
-            NoticeKind.MISSING_KEY -> if (small) R.string.widget_short_missing_key else R.string.widget_missing_key_body
+            NoticeKind.RECONFIGURE -> if (small) R.string.widget_short_reconfigure else R.string.widget_reconfigure_body
             NoticeKind.NO_DEPARTURE -> if (small) R.string.widget_short_no_departure else R.string.widget_no_departure
             else -> if (small) R.string.widget_short_error else null
         }?.let { context.getString(it) } ?: notice.detail.orEmpty()
@@ -719,20 +742,55 @@ private class Scene(
         val noteWidth = if (tag != null) {
             lateTag(tag, right, cy + 0.35f * timeSize, timeSize)
         } else {
-            timeLabel(right, cy + 0.35f * timeSize, timeSize)
+            timeLabel(right, cy + 0.35f * timeSize, timeSize, stacked = right - left < WIDE_HEADER)
         }
         val stop = fit(model.stopName, Face.SEMI, nameSize, right - textX - noteWidth - 8f)
         text(stop, textX, cy + 0.35f * nameSize, Face.SEMI, nameSize, p.text)
     }
 
-    /** Heure de mise à jour, en couleur si l'actualisation a échoué. */
-    private fun timeLabel(right: Float, base: Float, size: Float): Float {
-        val label = model.timeLabel
-        if (label.isEmpty()) return 0f
-        return if (model.stale) {
-            textRight(label, right, base, Face.SEMI, size, p.late)
+    /** L'heure, précédée de la source s'il faut la citer : « Tracéo 22:34 ». */
+    private fun sourcedTime(): String =
+        listOfNotNull(model.sourceLabel, model.timeLabel.takeIf { it.isNotEmpty() }).joinToString(" ")
+
+    /**
+     * Heure de mise à jour ou du relevé, avec la source s'il faut la citer. Elle passe en couleur si
+     * l'actualisation a échoué ou si le relevé est ancien, avec dans ce cas un triangle d'alerte.
+     *
+     * @param stacked source et heure sur deux lignes, pour laisser sa largeur au nom de l'arrêt
+     */
+    private fun timeLabel(right: Float, base: Float, size: Float, stacked: Boolean = false): Float {
+        val source = model.sourceLabel
+        if (source == null && model.timeLabel.isEmpty()) return 0f
+        val face = if (timeAlert) Face.SEMI else Face.REGULAR
+        val color = if (timeAlert) p.late else p.text3
+        var width = if (source != null && stacked) {
+            max(
+                textRight(source, right, base - size * 0.95f, face, size * 0.85f, color),
+                textRight(model.timeLabel, right, base + size * 0.15f, face, size, color),
+            )
         } else {
-            textRight(label, right, base, Face.REGULAR, size, p.text3)
+            textRight(sourcedTime(), right, base, face, size, color)
+        }
+        if (model.oldSnapshot && !model.stale) {
+            val gap = 2f
+            warning(right - width - gap - size, base - 0.35f * size, size, p.late)
+            width += gap + size
+        }
+        return width
+    }
+
+    /**
+     * Pour les petits formats : la source et l'heure du relevé si elles tiennent dans [room], sinon
+     * l'heure seule, sinon rien. Un relevé ancien est précédé d'un triangle d'alerte s'il reste la place.
+     */
+    private fun snapshotNote(right: Float, base: Float, size: Float, room: Float) {
+        val face = if (model.oldSnapshot) Face.SEMI else Face.MEDIUM
+        val color = if (model.oldSnapshot) p.late else p.text2
+        val note = listOf(sourcedTime(), model.timeLabel).firstOrNull { measure(it, face, size) <= room } ?: return
+        val width = textRight(note, right, base, face, size, color)
+        val gap = 2f
+        if (model.oldSnapshot && width + gap + size <= room) {
+            warning(right - width - gap - size, base - 0.35f * size, size, p.late)
         }
     }
 
@@ -1033,5 +1091,8 @@ private class Scene(
     private companion object {
         const val MIN_LIST_ROW = 40f
         const val MAX_LIST_ROW = 48f
+
+        /** Largeur d'en-tête à partir de laquelle « Tracéo 22:34 » tient sur une ligne. */
+        const val WIDE_HEADER = 250f
     }
 }

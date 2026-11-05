@@ -1,6 +1,7 @@
 package fr.trprim.siri.data
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -103,6 +104,56 @@ class DirectionsTest {
         )
         val upcoming = Directions.upcoming(deps, now)
         assertEquals(listOf("Soon", "Later"), upcoming.map { it.destination })
+    }
+
+    @Test
+    fun filterAcceptsADestinationWhenPrimReturnsAnotherDirectionName() {
+        val zone = "stop_area:IDFM:71348"
+        // Widget configuré sans clé : la clé de sens est la destination vue par Tracéo.
+        val selection = mapOf(zone to setOf("La Défense (Grande Arche)"))
+        val deps = listOf(
+            dep(zone, "La Défense (Grande Arche)", 2, direction = "La Défense"),
+            dep(zone, "Château de Vincennes", 3, direction = "Château de Vincennes"),
+        )
+        assertEquals(listOf("La Défense (Grande Arche)"), Directions.filter(deps, selection).map { it.destination })
+    }
+
+    @Test
+    fun filterStillMatchesTheDirectionName() {
+        val zone = "IDFM:monomodalStopPlace:1"
+        val selection = mapOf(zone to setOf("Nord"))
+        val deps = listOf(dep(zone, "Terminus Nord", 2, direction = "Nord"), dep(zone, "Terminus Sud", 3, direction = "Sud"))
+        assertEquals(listOf("Terminus Nord"), Directions.filter(deps, selection).map { it.destination })
+    }
+
+    @Test
+    fun terminusArrivalsAreRemoved() {
+        val deps = listOf(dep("s", "Auber", 2), dep("s", "Boissy-Saint-Léger", 3))
+        assertEquals(listOf("Boissy-Saint-Léger"), Directions.withoutTerminusArrivals(deps, "Auber").map { it.destination })
+    }
+
+    @Test
+    fun terminusComparisonIgnoresCaseAccentsAndFinalTown() {
+        fun kept(destination: String, stop: String) =
+            Directions.withoutTerminusArrivals(listOf(dep("s", destination, 2)), stop).isNotEmpty()
+
+        assertFalse(kept("CHATELET", "Châtelet"))
+        assertFalse(kept("Boissy Saint Léger", "Boissy-Saint-Léger"))
+        assertFalse(kept("La Défense (Grande Arche)", "La Défense"))
+        assertFalse(kept("La Défense", "La Défense (Grande Arche)"))
+        assertFalse(kept("Mairie (Montreuil)", "Mairie (Paris)"))
+        // Seul un suffixe final compte, et un nom seulement proche reste un vrai sens.
+        assertTrue(kept("Esplanade de la Défense", "La Défense"))
+        assertTrue(kept("Gare (Nord) Sud", "Gare"))
+        assertTrue(kept("La Défense", ""))
+    }
+
+    @Test
+    fun terminusCanEmptyTheDirections() {
+        val stop = Stop("Auber", null, listOf("s"))
+        val results = mapOf("s" to Directions.withoutTerminusArrivals(listOf(dep("s", "Auber", 2)), stop.name))
+        val option = Directions.buildOptions(stop, results).single()
+        assertNull(option.key)
     }
 
     @Test
