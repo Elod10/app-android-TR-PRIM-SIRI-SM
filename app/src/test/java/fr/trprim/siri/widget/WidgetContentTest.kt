@@ -99,6 +99,15 @@ class WidgetContentTest {
     }
 
     @Test
+    fun catalogOffersEveryFormatOnceAndTheAutomaticEntry() {
+        val catalog = WidgetProviders.catalog
+        assertEquals(WidgetFormat.entries.toSet(), catalog.mapNotNull { it.format }.toSet())
+        assertEquals(WidgetFormat.entries.size + 1, catalog.size)
+        assertEquals(catalog.size, catalog.map { it.provider }.toSet().size)
+        assertEquals(DeparturesWidgetProvider::class.java, catalog.single { it.format == null }.provider)
+    }
+
+    @Test
     fun chosenFormatWinsOverSizeAndDirection() {
         val chosen = WidgetModels.build(
             config(metro, oneDirection), state(dep("A", 5)), hasApiKey = true, refreshing = false,

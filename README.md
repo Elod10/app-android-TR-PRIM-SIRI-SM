@@ -16,7 +16,8 @@ prochains passages d'une ligne à un arrêt d'Île-de-France, à partir de l'API
   - **Sens** : l'application interroge PRIM en temps réel sur chaque point d'arrêt (quai) de l'arrêt
     choisi et propose les sens observés (« Vers Porte de Clignancourt »…), ou « Tous les sens ».
     Plusieurs sens/destinations peuvent être cochés (utile pour les branches du RER).
-- **Dix widgets au choix dans la liste des widgets du lanceur**, tous redimensionnables :
+- **Dix widgets au choix**, depuis la liste des widgets du lanceur ou l'application, tous
+  redimensionnables :
 
   | Widget | Taille de départ | Contenu |
   |---|---|---|
@@ -64,8 +65,8 @@ seule une fois le sens choisi). Adaptez la fréquence d'actualisation à votre q
 ## Utilisation
 
 1. Ouvrir l'application et enregistrer la clé API.
-2. Ajouter le format de son choix sur l'écran d'accueil (appui long → Widgets → Temps réel IDF). Le
-   bouton « Ajouter un widget » de l'application ajoute le widget automatique.
+2. Ajouter le format de son choix sur l'écran d'accueil : appui long → Widgets → Temps réel IDF, ou
+   bouton « Ajouter un widget » de l'application.
 3. Choisir le mode, la ligne, l'arrêt puis le ou les sens, et enregistrer.
 
 ## Détails techniques

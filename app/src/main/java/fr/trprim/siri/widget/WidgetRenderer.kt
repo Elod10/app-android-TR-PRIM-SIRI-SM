@@ -2,7 +2,6 @@ package fr.trprim.siri.widget
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -113,6 +112,4 @@ object WidgetRenderer {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
     }
-
-    fun providerComponent(context: Context) = ComponentName(context, DeparturesWidgetProvider::class.java)
 }

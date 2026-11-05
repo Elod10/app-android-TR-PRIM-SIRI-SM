@@ -60,6 +60,8 @@
     <string name="main_widgets_title">Mes widgets</string>
     <string name="main_widgets_empty">Aucun widget sur l\'écran d\'accueil. Choisissez le format de votre choix dans la liste des widgets de votre lanceur (Temps réel IDF), ou utilisez le bouton ci-dessous.</string>
     <string name="main_add_widget">Ajouter un widget à l\'écran d\'accueil</string>
+    <string name="main_add_widget_title">Choisir un widget</string>
+    <string name="widget_choice_title">%1$s · %2$s</string>
     <string name="main_add_widget_unsupported">Votre lanceur ne permet pas l\'ajout direct : faites un appui long sur l\'écran d\'accueil › Widgets › Temps réel IDF.</string>
     <string name="main_widget_configure">Modifier</string>
     <string name="main_widget_refresh">Actualiser</string>
