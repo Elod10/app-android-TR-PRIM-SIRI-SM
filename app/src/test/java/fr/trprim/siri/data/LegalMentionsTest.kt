@@ -69,6 +69,11 @@ class LegalMentionsTest {
     }
 
     @Test
+    fun theAppSaysItIsNotAffiliatedWithIdfm() {
+        assertTrue(string("sources_not_affiliated").contains("pas affiliée à Île-de-France Mobilités"))
+    }
+
+    @Test
     fun oneMinuteIsNoLongerPromisedWithoutKey() {
         assertFalse(string("main_refresh_help").contains("« Chaque minute »"))
     }

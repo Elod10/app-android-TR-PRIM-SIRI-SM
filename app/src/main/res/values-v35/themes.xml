@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="AppTheme" parent="android:Theme.DeviceDefault.DayNight">
-        <item name="android:colorPrimary">@color/brand_primary</item>
-        <item name="android:colorPrimaryDark">@color/brand_primary_dark</item>
-        <item name="android:colorAccent">@color/brand_accent</item>
-        <item name="android:windowBackground">@color/screen_background</item>
+    <style name="BaseTheme" parent="android:Theme.DeviceDefault.DayNight">
+        <item name="android:windowLightNavigationBar">@bool/light_system_bars</item>
         <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
     </style>
 </resources>

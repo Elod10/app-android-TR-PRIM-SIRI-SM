@@ -5,19 +5,27 @@ import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.drawable.ClipDrawable
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
-import android.text.method.LinkMovementMethod
-import android.view.MenuItem
+import android.view.Gravity
 import android.view.View
 import android.view.inputmethod.InputMethodManager
-import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.GridView
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.ProgressBar
-import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import fr.trprim.siri.R
@@ -27,22 +35,26 @@ import fr.trprim.siri.data.DirectionOption
 import fr.trprim.siri.data.Directions
 import fr.trprim.siri.data.Line
 import fr.trprim.siri.data.PassageRoute
+import fr.trprim.siri.data.PassageSnapshot
 import fr.trprim.siri.data.PositionFix
 import fr.trprim.siri.data.PositionReader
 import fr.trprim.siri.data.Prefs
-import fr.trprim.siri.data.PrimClient
-import fr.trprim.siri.data.PrimException
 import fr.trprim.siri.data.RankedLine
 import fr.trprim.siri.data.ReferentialRepository
 import fr.trprim.siri.data.Stop
 import fr.trprim.siri.data.TransportMode
 import fr.trprim.siri.data.WidgetConfig
+import fr.trprim.siri.data.WidgetState
+import fr.trprim.siri.data.WidgetStates
 import fr.trprim.siri.data.WidgetTheme
 import fr.trprim.siri.data.formatDistance
 import fr.trprim.siri.data.normalizeLabel
 import fr.trprim.siri.widget.AutoMode
+import fr.trprim.siri.widget.BadgeRenderer
+import fr.trprim.siri.widget.Palettes
 import fr.trprim.siri.widget.WidgetFormat
 import fr.trprim.siri.widget.WidgetProviders
+import fr.trprim.siri.widget.WidgetRenderer
 import fr.trprim.siri.widget.WidgetUpdater
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -54,28 +66,41 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
+import java.lang.ref.WeakReference
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
  * Assistant de configuration d'un widget :
- * mode de transport → ligne → arrêt → sens, ou le mode automatique, qui suit la position.
+ * mode de transport → ligne → arrêt → sens et couleur, ou le mode automatique, qui suit la
+ * position : ligne proche → couleur.
  */
 class ConfigureActivity : Activity() {
 
     companion object {
         const val EXTRA_FROM_WIDGET = "fr.trprim.siri.extra.FROM_WIDGET"
 
-        private val THEME_CHOICES = listOf(
-            WidgetTheme.AUTO to R.string.theme_auto,
-            WidgetTheme.DARK to R.string.theme_dark,
-            WidgetTheme.LIGHT to R.string.theme_light,
-            WidgetTheme.LINE to R.string.theme_line,
-        )
+        /** Ouverture par le système, juste après l'ajout du widget depuis l'application. */
+        const val EXTRA_FROM_PIN = "fr.trprim.siri.extra.FROM_PIN"
 
         private const val REQUEST_LOCATION = 1
         private const val AUTO_ROWS_SHOWN = 30
+
+        /** Une grille n'a de sens que pour quelques lignes au nom très court, comme le métro. */
+        private const val GRID_MAX_LINES = 40
+        private const val GRID_MAX_LABEL = 3
+        private const val PREVIEW_MAX_HEIGHT_DP = 240f
+
+        /** Niveau d'un ClipDrawable qui en montre la moitié (10 000 = tout). */
+        private const val CLIP_HALF = 5000
+
+        private val openScreens = HashMap<Int, WeakReference<ConfigureActivity>>()
+
+        /** Vrai si la configuration de ce widget est déjà à l'écran. */
+        fun isOpen(widgetId: Int): Boolean = openScreens[widgetId]?.get()?.isFinishing == false
     }
 
-    private enum class Step { KEY, MODE, LINE, STOP, DIRECTION, AUTO }
+    private enum class Step { MODE, LINE, STOP, DIRECTION, AUTO, AUTO_COLOR }
 
     /** Marqueur de l'option « Tous les sens ». */
     private object AllDirections
@@ -83,12 +108,16 @@ class ConfigureActivity : Activity() {
     /** Marqueur de la ligne « Automatique » de la liste des modes. */
     private object AutoRow
 
+    /** Marqueur de la ligne qui mène à la clé API. */
+    private object KeyRow
+
     private val scope = MainScope()
     private var loadJob: Job? = null
 
     private lateinit var prefs: Prefs
     private lateinit var repository: ReferentialRepository
     private lateinit var adapter: RowAdapter
+    private lateinit var gridAdapter: RowAdapter
 
     private var widgetId = AppWidgetManager.INVALID_APPWIDGET_ID
     private var existing: WidgetConfig? = null
@@ -98,8 +127,12 @@ class ConfigureActivity : Activity() {
     private var stop: Stop? = null
     private var viaShortcut = false
     private var directionOptions: List<DirectionOption> = emptyList()
+    private var directionResults: List<Result<PassageSnapshot>> = emptyList()
+    private var previewState: WidgetState? = null
+    private var selectedTheme = WidgetTheme.AUTO
     private var autoFix: PositionFix? = null
     private var autoFirst: RankedLine? = null
+    private var autoItems: List<RowItem> = emptyList()
 
     /** Format choisi dans la liste des widgets du lanceur (null pour l'entrée automatique). */
     private val chosenFormat: WidgetFormat? by lazy {
@@ -112,20 +145,32 @@ class ConfigureActivity : Activity() {
     /** Vrai si le format choisi n'affiche qu'un sens : un seul peut alors être coché. */
     private val oneDirectionOnly: Boolean get() = chosenFormat?.followsOneDirection == true
 
-    private lateinit var breadcrumb: TextView
+    private lateinit var stepBar: View
+    private lateinit var stepCount: TextView
+    private lateinit var stepSegments: List<View>
+    private lateinit var overline: View
+    private lateinit var stepTitle: TextView
+    private lateinit var crumb: View
+    private lateinit var crumbBadge: ImageView
+    private lateinit var crumbText: TextView
     private lateinit var stepHelp: TextView
+    private lateinit var searchBox: View
     private lateinit var search: EditText
     private lateinit var list: ListView
+    private lateinit var grid: GridView
+    private lateinit var emptyText: View
     private lateinit var statusBox: View
     private lateinit var progress: ProgressBar
+    private lateinit var statusIcon: ImageView
     private lateinit var statusText: TextView
+    private lateinit var statusSettings: Button
     private lateinit var retry: Button
-    private lateinit var keyPanel: View
-    private lateinit var keyInput: EditText
-    private lateinit var keyStatus: TextView
-    private lateinit var keyContinue: Button
+    private lateinit var previewBox: View
+    private lateinit var previewImage: ImageView
+    private lateinit var footerHelp: TextView
     private lateinit var bottomBar: View
-    private lateinit var themeSpinner: Spinner
+    private lateinit var colorSection: View
+    private lateinit var swatches: LinearLayout
     private lateinit var save: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -135,69 +180,115 @@ class ConfigureActivity : Activity() {
         // Résultat par défaut : annulation (le lanceur retire alors le widget).
         setResult(RESULT_CANCELED, resultIntent())
         if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
-            Toast.makeText(this, R.string.invalid_widget, Toast.LENGTH_SHORT).show()
+            // Après un ajout depuis l'application, la galerie prend le relais si l'identifiant manque.
+            if (intent?.getBooleanExtra(EXTRA_FROM_PIN, false) != true) {
+                Toast.makeText(this, R.string.invalid_widget, Toast.LENGTH_SHORT).show()
+            }
             finish()
             return
         }
+        // Certains lanceurs ouvrent eux aussi la configuration après un ajout depuis l'application.
+        if (isOpen(widgetId)) {
+            setResult(RESULT_OK, resultIntent())
+            finish()
+            return
+        }
+        openScreens[widgetId] = WeakReference(this)
 
         setContentView(R.layout.activity_configure)
-        actionBar?.setDisplayHomeAsUpEnabled(true)
 
         prefs = Prefs(this)
         repository = ReferentialRepository(this)
         existing = prefs.config(widgetId)
+        selectedTheme = ThemeChoices.initial(existing?.theme, chosenFormat)
 
-        breadcrumb = findViewById(R.id.breadcrumb)
-        stepHelp = findViewById(R.id.step_help)
-        search = findViewById(R.id.search)
-        list = findViewById(R.id.list)
-        statusBox = findViewById(R.id.status_box)
-        progress = findViewById(R.id.progress)
-        statusText = findViewById(R.id.status_text)
-        retry = findViewById(R.id.retry)
-        keyPanel = findViewById(R.id.key_panel)
-        keyInput = findViewById(R.id.key_input)
-        keyStatus = findViewById(R.id.key_status)
-        keyContinue = findViewById(R.id.key_continue)
-        bottomBar = findViewById(R.id.bottom_bar)
-        themeSpinner = findViewById(R.id.theme_spinner)
-        save = findViewById(R.id.save)
-        setupThemeSpinner()
-
+        bindViews()
         adapter = RowAdapter(this)
+        gridAdapter = RowAdapter(this, cells = true)
         list.adapter = adapter
-        list.setOnItemClickListener { _, _, position, _ -> onItemClicked(adapter.getItem(position)) }
+        grid.adapter = gridAdapter
+        // La position tient compte de l'aperçu placé en tête de liste.
+        list.setOnItemClickListener { parent, _, position, _ ->
+            (parent.getItemAtPosition(position) as? RowItem)?.let(::onItemClicked)
+        }
+        grid.setOnItemClickListener { _, _, position, _ -> onItemClicked(gridAdapter.getItem(position)) }
         search.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
-            override fun afterTextChanged(s: Editable?) {
-                adapter.filter(s?.toString().orEmpty())
-            }
+            override fun afterTextChanged(s: Editable?) = applySearch(s?.toString().orEmpty())
         })
         retry.setOnClickListener { goTo(step, forceRefresh = true) }
-        save.setOnClickListener { saveConfig() }
-        findViewById<Button>(R.id.key_portal).setOnClickListener { UiText.openUrl(this, UiText.PRIM_PORTAL_URL) }
-        keyContinue.setOnClickListener { submitKey() }
-        findViewById<TextView>(R.id.key_help).movementMethod = LinkMovementMethod.getInstance()
+        statusSettings.setOnClickListener {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+        }
+        save.setOnClickListener {
+            when (step) {
+                Step.AUTO -> goTo(Step.AUTO_COLOR)
+                Step.AUTO_COLOR -> saveAutoConfig()
+                else -> saveConfig()
+            }
+        }
+        findViewById<View>(R.id.back).setOnClickListener {
+            @Suppress("DEPRECATION")
+            onBackPressed()
+        }
 
         goTo(if (isProximity) Step.AUTO else Step.MODE)
     }
 
+    private fun bindViews() {
+        stepBar = findViewById(R.id.step_bar)
+        stepCount = findViewById(R.id.step_count)
+        stepSegments = listOf(
+            findViewById(R.id.step_segment_1),
+            findViewById(R.id.step_segment_2),
+            findViewById(R.id.step_segment_3),
+            findViewById(R.id.step_segment_4),
+        )
+        overline = findViewById(R.id.overline)
+        stepTitle = findViewById(R.id.step_title)
+        crumb = findViewById(R.id.crumb)
+        crumbBadge = findViewById(R.id.crumb_badge)
+        crumbText = findViewById(R.id.crumb_text)
+        stepHelp = findViewById(R.id.step_help)
+        searchBox = findViewById(R.id.search_box)
+        search = findViewById(R.id.search)
+        list = findViewById(R.id.list)
+        grid = findViewById(R.id.grid)
+        emptyText = findViewById(R.id.empty_text)
+        statusBox = findViewById(R.id.status_box)
+        progress = findViewById(R.id.progress)
+        statusIcon = findViewById(R.id.status_icon)
+        statusText = findViewById(R.id.status_text)
+        statusSettings = findViewById(R.id.status_settings)
+        retry = findViewById(R.id.retry)
+        bottomBar = findViewById(R.id.bottom_bar)
+        colorSection = findViewById(R.id.color_section)
+        swatches = findViewById(R.id.swatches)
+        save = findViewById(R.id.save)
+
+        val header = layoutInflater.inflate(R.layout.list_preview_header, list, false)
+        previewBox = header.findViewById(R.id.preview_box)
+        previewImage = header.findViewById(R.id.preview_image)
+        list.addHeaderView(header, null, false)
+        val footer = layoutInflater.inflate(R.layout.list_help_footer, list, false)
+        footerHelp = footer.findViewById(R.id.footer_help)
+        list.addFooterView(footer, null, false)
+    }
+
+    override fun onRestart() {
+        super.onRestart()
+        // Une clé ajoutée entre-temps propose d'autres modes.
+        if (step == Step.MODE) showModes()
+    }
+
     override fun onDestroy() {
         scope.cancel()
+        if (openScreens[widgetId]?.get() === this) openScreens.remove(widgetId)
         super.onDestroy()
     }
 
     private fun resultIntent(): Intent = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-
-    private fun setupThemeSpinner() {
-        val labels = THEME_CHOICES.map { getString(it.second) }
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels)
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        themeSpinner.adapter = adapter
-        val current = existing?.theme ?: WidgetFormat.defaultTheme(chosenFormat)
-        themeSpinner.setSelection(THEME_CHOICES.indexOfFirst { it.first == current }.coerceAtLeast(0))
-    }
 
     // --- Navigation ------------------------------------------------------------------------
 
@@ -206,14 +297,15 @@ class ConfigureActivity : Activity() {
         step = target
         search.setText("")
         adapter.setItems(emptyList())
+        gridAdapter.setItems(emptyList())
         updateChrome()
         when (target) {
-            Step.KEY -> showKeyPanel()
             Step.MODE -> showModes()
             Step.LINE -> loadLines(forceRefresh)
             Step.STOP -> loadStops(forceRefresh)
             Step.DIRECTION -> loadDirections()
-            Step.AUTO -> startAuto()
+            Step.AUTO -> if (autoItems.isEmpty() || forceRefresh) startAuto() else showAutoRows()
+            Step.AUTO_COLOR -> showAutoColor()
         }
     }
 
@@ -223,40 +315,41 @@ class ConfigureActivity : Activity() {
         when (step) {
             Step.DIRECTION -> goTo(if (viaShortcut) Step.MODE else Step.STOP)
             Step.STOP -> goTo(Step.LINE)
-            Step.LINE, Step.KEY -> goTo(Step.MODE)
+            Step.LINE -> goTo(Step.MODE)
+            Step.AUTO_COLOR -> goTo(Step.AUTO)
             Step.AUTO -> if (isProximity) super.onBackPressed() else goTo(Step.MODE)
             Step.MODE -> super.onBackPressed()
         }
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == android.R.id.home) {
-            @Suppress("DEPRECATION")
-            onBackPressed()
-            return true
-        }
-        return super.onOptionsItemSelected(item)
-    }
-
     private fun updateChrome() {
         val (index, label) = when (step) {
-            Step.KEY -> 0 to getString(R.string.step_key)
             Step.MODE -> 1 to getString(R.string.step_mode)
             Step.LINE -> 2 to getString(R.string.step_line)
             Step.STOP -> 3 to getString(R.string.step_stop)
             Step.DIRECTION -> 4 to getString(R.string.step_direction)
-            Step.AUTO -> 0 to getString(R.string.step_auto)
+            Step.AUTO -> 0 to getString(if (isProximity) R.string.widget_proximite_name else R.string.step_auto)
+            Step.AUTO_COLOR -> 0 to getString(R.string.step_direction)
         }
         title = if (index == 0) label else getString(R.string.step_counter, index, label)
+        stepTitle.text = label
 
-        val crumbs = ArrayList<String>()
-        if (step.ordinal > Step.MODE.ordinal) mode?.let { crumbs += it.label }
-        if (step.ordinal > Step.LINE.ordinal) line?.let { crumbs += UiText.lineTitle(it) }
-        if (step.ordinal > Step.STOP.ordinal) stop?.let { crumbs += it.name }
-        breadcrumb.text = crumbs.joinToString("  ›  ")
-        breadcrumb.visibility = if (crumbs.isEmpty()) View.GONE else View.VISIBLE
+        val inSteps = index > 0
+        stepBar.visibility = if (inSteps) View.VISIBLE else View.GONE
+        stepCount.visibility = if (inSteps) View.VISIBLE else View.GONE
+        stepCount.text = getString(R.string.step_count, index)
+        stepSegments.forEachIndexed { i, segment ->
+            segment.setBackgroundResource(if (i < index) R.drawable.bg_step_on else R.drawable.bg_step_off)
+        }
+        overline.visibility = if (!inSteps && !isProximity) View.VISIBLE else View.GONE
 
-        search.visibility = if (step == Step.LINE || step == Step.STOP) View.VISIBLE else View.GONE
+        when (step) {
+            Step.LINE -> showCrumb(null, mode?.label.orEmpty())
+            Step.STOP -> showCrumb(line, line?.let(UiText::lineTitle).orEmpty())
+            else -> crumb.visibility = View.GONE
+        }
+
+        searchBox.visibility = if (step == Step.LINE || step == Step.STOP) View.VISIBLE else View.GONE
         search.hint = getString(
             when {
                 step == Step.LINE -> R.string.search_line_hint
@@ -266,82 +359,80 @@ class ConfigureActivity : Activity() {
             },
         )
         stepHelp.visibility = View.GONE
-        bottomBar.visibility = if (step == Step.DIRECTION) View.VISIBLE else View.GONE
-        keyPanel.visibility = if (step == Step.KEY) View.VISIBLE else View.GONE
-        if (step != Step.KEY) hideKeyboard()
+        previewBox.visibility = View.GONE
+        footerHelp.visibility = View.GONE
+        emptyText.visibility = View.GONE
+
+        bottomBar.visibility = if (step == Step.DIRECTION || step == Step.AUTO_COLOR) View.VISIBLE else View.GONE
+        colorSection.visibility = if (step == Step.AUTO) View.GONE else View.VISIBLE
+        save.setText(if (step == Step.AUTO) R.string.continue_label else R.string.save_widget)
+        if (step == Step.DIRECTION || step == Step.AUTO_COLOR) renderSwatches()
+        hideKeyboard()
+    }
+
+    private fun showCrumb(badge: Line?, text: String) {
+        crumb.visibility = View.VISIBLE
+        crumbText.text = text
+        crumbBadge.visibility = if (badge != null) View.VISIBLE else View.GONE
+        badge?.let { crumbBadge.setImageBitmap(BadgeRenderer.render(this, it, 22f)) }
     }
 
     private fun showList() {
         statusBox.visibility = View.GONE
+        grid.visibility = View.GONE
         list.visibility = View.VISIBLE
         list.setSelection(0)
     }
 
+    private fun showGrid() {
+        statusBox.visibility = View.GONE
+        list.visibility = View.GONE
+        grid.visibility = View.VISIBLE
+        grid.setSelection(0)
+    }
+
     private fun showLoading(message: String) {
         list.visibility = View.GONE
+        grid.visibility = View.GONE
         statusBox.visibility = View.VISIBLE
         progress.visibility = View.VISIBLE
+        statusIcon.visibility = View.GONE
         statusText.text = message
+        statusSettings.visibility = View.GONE
         retry.visibility = View.GONE
     }
 
-    private fun showMessage(message: String, canRetry: Boolean) {
+    /**
+     * @param iconRes illustration du message
+     * @param canOpenSettings vrai si seul le système peut lever le blocage
+     */
+    private fun showMessage(message: String, canRetry: Boolean, iconRes: Int = R.drawable.ic_alert, canOpenSettings: Boolean = false) {
         list.visibility = View.GONE
+        grid.visibility = View.GONE
         statusBox.visibility = View.VISIBLE
         progress.visibility = View.GONE
+        statusIcon.visibility = View.VISIBLE
+        statusIcon.setImageResource(iconRes)
         statusText.text = message
+        statusSettings.visibility = if (canOpenSettings) View.VISIBLE else View.GONE
         retry.visibility = if (canRetry) View.VISIBLE else View.GONE
+    }
+
+    private fun applySearch(text: String) {
+        adapter.filter(text)
+        gridAdapter.filter(text)
+        val searching = step == Step.LINE || step == Step.STOP
+        val showing = if (grid.visibility == View.VISIBLE) gridAdapter.count else adapter.count
+        emptyText.visibility = if (searching && statusBox.visibility != View.VISIBLE && text.isNotBlank() && showing == 0) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
     }
 
     private fun hideKeyboard() {
         val imm = getSystemService(InputMethodManager::class.java) ?: return
         imm.hideSoftInputFromWindow(search.windowToken, 0)
-    }
-
-    // --- Clé API facultative, proposée sous la liste des modes ---------------------------------
-
-    private fun showKeyPanel() {
-        list.visibility = View.GONE
-        statusBox.visibility = View.GONE
-        keyInput.setText(prefs.apiKey)
-        keyStatus.visibility = View.GONE
-        keyContinue.isEnabled = true
-    }
-
-    private fun submitKey() {
-        val key = keyInput.text.toString().trim()
-        if (key.isEmpty()) {
-            goTo(Step.MODE)
-            return
-        }
-        prefs.apiKey = key
-        keyContinue.isEnabled = false
-        showKeyStatus(getString(R.string.main_key_testing), error = false)
-        loadJob = scope.launch {
-            val error = withContext(Dispatchers.IO) {
-                try {
-                    PrimClient(key).testKey()
-                    null
-                } catch (e: PrimException) {
-                    e
-                }
-            }
-            keyContinue.isEnabled = true
-            if (error != null && error.kind == PrimException.Kind.AUTH) {
-                showKeyStatus(error.message.orEmpty(), error = true)
-            } else {
-                if (error != null) Toast.makeText(this@ConfigureActivity, error.message, Toast.LENGTH_LONG).show()
-                WidgetUpdater.renderAll(this@ConfigureActivity)
-                WidgetUpdater.requestRefresh(this@ConfigureActivity)
-                goTo(Step.MODE)
-            }
-        }
-    }
-
-    private fun showKeyStatus(message: String, error: Boolean) {
-        keyStatus.visibility = View.VISIBLE
-        keyStatus.text = message
-        keyStatus.setTextColor(getColor(if (error) R.color.error_text else R.color.success_text))
     }
 
     // --- Étape 1 : mode ---------------------------------------------------------------------
@@ -352,6 +443,8 @@ class ConfigureActivity : Activity() {
         items += RowItem(
             title = getString(R.string.auto_row),
             subtitle = getString(if (existing?.auto == true) R.string.auto_row_active else R.string.auto_row_sub),
+            iconRes = R.drawable.ic_pin,
+            style = RowStyle.INVERSE,
             payload = AutoRow,
         )
         // Un arrêt choisi avec une clé retirée depuis n'existe pas chez Tracéo : impossible de le garder.
@@ -360,14 +453,29 @@ class ConfigureActivity : Activity() {
                 title = getString(R.string.keep_current),
                 subtitle = getString(R.string.keep_current_sub, UiText.lineTitle(cfg.line), cfg.stop.name),
                 badge = cfg.line,
+                style = RowStyle.CARD,
                 payload = cfg,
             )
         }
-        DataSources.modes(hasKey).forEach { m ->
-            items += RowItem(m.label, UiText.modeSubtitle(m), badge = UiText.modeBadge(m), payload = m)
+        val modes = DataSources.modes(hasKey)
+        modes.forEachIndexed { index, m ->
+            items += RowItem(
+                title = m.label,
+                subtitle = UiText.modeSubtitle(m),
+                chip = UiText.modeChip(m),
+                style = RowStyle.inGroup(index, modes.size),
+                chevron = true,
+                payload = m,
+            )
         }
         if (!hasKey) {
-            items += RowItem(getString(R.string.key_optional_row), getString(R.string.key_optional_row_sub), payload = Step.KEY)
+            items += RowItem(
+                title = getString(R.string.key_optional_row),
+                subtitle = getString(R.string.key_optional_row_sub),
+                iconRes = R.drawable.ic_key,
+                style = RowStyle.PLAIN,
+                payload = KeyRow,
+            )
         }
         adapter.setItems(items)
         showList()
@@ -390,7 +498,7 @@ class ConfigureActivity : Activity() {
                     viaShortcut = false
                     goTo(Step.LINE)
                 }
-                is Step -> goTo(payload)
+                KeyRow -> startActivity(Intent(this, KeyActivity::class.java))
                 AutoRow -> {
                     mode = null
                     line = null
@@ -413,24 +521,29 @@ class ConfigureActivity : Activity() {
                 adapter.notifyDataSetChanged()
                 updateSaveEnabled()
             }
-            Step.KEY -> Unit
+            Step.AUTO_COLOR -> Unit
         }
     }
 
     // --- Mode automatique ------------------------------------------------------------------------
 
     private fun startAuto() {
+        autoItems = emptyList()
         if (PositionReader(this).hasPreciseAccess) {
             loadAuto()
             return
         }
-        stepHelp.text = getString(if (isProximity) R.string.proximite_help else R.string.auto_help)
-        stepHelp.visibility = View.VISIBLE
+        showAutoHelp()
         showLoading(getString(R.string.auto_loading_position))
         requestPermissions(
             arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
             REQUEST_LOCATION,
         )
+    }
+
+    private fun showAutoHelp() {
+        stepHelp.setText(if (isProximity) R.string.proximite_help else R.string.auto_help)
+        stepHelp.visibility = View.VISIBLE
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -439,9 +552,12 @@ class ConfigureActivity : Activity() {
         val granted = permissions.filterIndexed { i, _ -> grantResults.getOrNull(i) == PackageManager.PERMISSION_GRANTED }
         when {
             Manifest.permission.ACCESS_FINE_LOCATION in granted -> loadAuto()
-            Manifest.permission.ACCESS_COARSE_LOCATION in granted ->
-                showMessage(getString(R.string.auto_error_precise), canRetry = true)
-            else -> showMessage(getString(R.string.auto_error_permission), canRetry = true)
+            Manifest.permission.ACCESS_COARSE_LOCATION in granted -> showMessage(
+                getString(R.string.auto_error_precise), canRetry = true, R.drawable.ic_location_off, canOpenSettings = true,
+            )
+            else -> showMessage(
+                getString(R.string.auto_error_permission), canRetry = true, R.drawable.ic_location_off, canOpenSettings = true,
+            )
         }
     }
 
@@ -467,12 +583,12 @@ class ConfigureActivity : Activity() {
             showLoading(getString(R.string.auto_loading_position))
             val fix = PositionReader(this@ConfigureActivity).read()
             if (fix == null || (fix.accuracyM ?: 0f) > AnchorPolicy.MAX_ACCURACY_M) {
-                showMessage(getString(R.string.auto_error_position), canRetry = true)
+                showMessage(getString(R.string.auto_error_position), canRetry = true, R.drawable.ic_location_off)
                 return@launch
             }
             val ranked = withContext(Dispatchers.IO) { AutoMode.ranking(this@ConfigureActivity, fix.point) }?.list.orEmpty()
             if (ranked.isEmpty()) {
-                showMessage(getString(R.string.auto_error_no_stop), canRetry = true)
+                showMessage(getString(R.string.auto_error_no_stop), canRetry = true, R.drawable.ic_search_large)
                 return@launch
             }
             if (isProximity) {
@@ -492,35 +608,85 @@ class ConfigureActivity : Activity() {
             autoFirst = ranked.first()
             val current = existing?.takeIf { it.auto }?.line?.id
             val preselected = ranked.firstOrNull { it.nearby.line.id == current } ?: ranked.first()
-            adapter.setItems(
-                ranked.take(AUTO_ROWS_SHOWN).map { row ->
-                    RowItem(
-                        title = UiText.lineTitle(row.nearby.line),
-                        subtitle = getString(R.string.auto_row_detail, row.nearby.stopName, formatDistance(row.nearby.distanceM)),
-                        badge = row.nearby.line,
-                        checkable = true,
-                        checked = row === preselected,
-                        payload = row,
-                    )
-                },
+            autoItems = ranked.take(AUTO_ROWS_SHOWN).map { row ->
+                RowItem(
+                    title = UiText.lineTitle(row.nearby.line),
+                    subtitle = getString(R.string.auto_row_detail, row.nearby.stopName, formatDistance(row.nearby.distanceM)),
+                    badge = row.nearby.line,
+                    radio = true,
+                    checked = row === preselected,
+                    payload = row,
+                )
+            }
+            showAutoRows()
+        }
+    }
+
+    private fun showAutoRows() {
+        adapter.setItems(autoItems)
+        showList()
+        showAutoHelp()
+        bottomBar.visibility = View.VISIBLE
+        updateSaveEnabled()
+    }
+
+    private fun selectedAutoRow(): RankedLine? = autoItems.firstOrNull { it.checked }?.payload as? RankedLine
+
+    /** En automatique, le widget suit la ligne proche : seuls « Tous les sens » et la couleur se règlent. */
+    private fun showAutoColor() {
+        val row = selectedAutoRow() ?: return goTo(Step.AUTO)
+        adapter.setItems(
+            listOf(
+                RowItem(
+                    title = getString(R.string.direction_all),
+                    subtitle = getString(R.string.direction_all_sub),
+                    style = RowStyle.GROUP_TOP,
+                    checkable = true,
+                    checked = true,
+                    enabled = false,
+                ),
+                RowItem(
+                    title = getString(R.string.auto_direction_one),
+                    style = RowStyle.GROUP_MIDDLE,
+                    checkable = true,
+                    enabled = false,
+                    dimmed = true,
+                ),
+                RowItem(
+                    title = getString(R.string.auto_direction_two),
+                    style = RowStyle.GROUP_BOTTOM,
+                    checkable = true,
+                    enabled = false,
+                    dimmed = true,
+                ),
+            ),
+        )
+        showList()
+        footerHelp.setText(R.string.auto_direction_help)
+        footerHelp.visibility = View.VISIBLE
+        previewState = null
+        renderPreview()
+        updateSaveEnabled()
+        loadJob = scope.launch {
+            val source = DataSources.passageSource(prefs.apiKey, prefs.primFormats)
+            val result = withContext(Dispatchers.IO) { AutoMode.fetch(source, row.nearby) }
+            val config = AutoMode.configFor(widgetId, row.nearby, selectedTheme)
+            previewState = WidgetStates.from(
+                config, listOf(result), null, System.currentTimeMillis(), removeTerminusArrivals = !prefs.hasApiKey,
             )
-            showList()
-            stepHelp.text = getString(R.string.auto_help)
-            stepHelp.visibility = View.VISIBLE
-            bottomBar.visibility = View.VISIBLE
-            updateSaveEnabled()
+            renderPreview()
         }
     }
 
     private fun saveAutoConfig() {
-        val row = adapter.items.firstOrNull { it.checked }?.payload as? RankedLine ?: return
+        val row = selectedAutoRow() ?: return
         val fix = autoFix ?: return
         AutoMode.saveConfiguration(
             context = this,
             widgetId = widgetId,
             nearby = row.nearby,
             fix = fix,
-            theme = THEME_CHOICES[themeSpinner.selectedItemPosition].first,
+            theme = selectedTheme,
             changedByUser = row !== autoFirst,
         )
         finishSaved()
@@ -537,17 +703,23 @@ class ConfigureActivity : Activity() {
                 if (lines.isEmpty()) {
                     showMessage(getString(R.string.no_result), canRetry = true)
                 } else {
-                    adapter.setItems(lines.map { l ->
+                    val items = lines.map { l ->
                         RowItem(
                             title = UiText.lineTitle(l),
                             subtitle = l.subtitle().ifEmpty { null },
                             badge = l,
-                            searchExtra = "${l.shortName} ${l.name} ${l.id}",
+                            searchExtra = "${l.shortName} ${l.name}",
                             payload = l,
                         )
-                    })
-                    adapter.filter(search.text.toString())
-                    showList()
+                    }
+                    if (fitsGrid(lines)) {
+                        gridAdapter.setItems(items)
+                        showGrid()
+                    } else {
+                        adapter.setItems(items)
+                        showList()
+                    }
+                    applySearch(search.text.toString())
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -556,6 +728,9 @@ class ConfigureActivity : Activity() {
             }
         }
     }
+
+    private fun fitsGrid(lines: List<Line>): Boolean =
+        lines.size <= GRID_MAX_LINES && lines.all { it.shortName.trim().ifEmpty { it.name.trim() }.length <= GRID_MAX_LABEL }
 
     // --- Étape 3 : arrêt --------------------------------------------------------------------
 
@@ -568,9 +743,9 @@ class ConfigureActivity : Activity() {
                 if (stops.isEmpty()) {
                     showMessage(getString(R.string.no_stop), canRetry = true)
                 } else {
-                    adapter.setItems(stops.map { s -> RowItem(title = s.name, subtitle = s.town, payload = s) })
-                    adapter.filter(search.text.toString())
+                    adapter.setItems(stops.map { s -> RowItem(title = s.name, subtitle = s.town, chevron = true, payload = s) })
                     showList()
+                    applySearch(search.text.toString())
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -580,7 +755,7 @@ class ConfigureActivity : Activity() {
         }
     }
 
-    // --- Étape 4 : sens ---------------------------------------------------------------------
+    // --- Étape 4 : sens et couleur ------------------------------------------------------------
 
     private fun loadDirections() {
         val l = line ?: return goTo(Step.LINE)
@@ -593,6 +768,7 @@ class ConfigureActivity : Activity() {
             val results = withContext(Dispatchers.IO) {
                 s.stopIds.map { id -> async { id to runCatching { source.passages(id, l.id) } } }.awaitAll()
             }
+            directionResults = results.map { it.second }
             directionOptions = Directions.buildOptions(
                 s,
                 results.associate { (id, result) ->
@@ -603,27 +779,37 @@ class ConfigureActivity : Activity() {
                 },
             )
 
+            val rowCount = directionOptions.size + if (oneDirectionOnly) 0 else 1
             val allItem = RowItem(
                 title = getString(R.string.direction_all),
                 subtitle = getString(R.string.direction_all_sub),
+                style = RowStyle.inGroup(0, rowCount),
                 checkable = true,
                 payload = AllDirections,
             )
-            val optionItems = directionOptions.map { opt ->
-                RowItem(title = opt.title, subtitle = opt.subtitle, checkable = true, payload = opt)
+            val offset = if (oneDirectionOnly) 0 else 1
+            val optionItems = directionOptions.mapIndexed { index, opt ->
+                RowItem(
+                    title = opt.title,
+                    subtitle = opt.subtitle,
+                    style = RowStyle.inGroup(index + offset, rowCount),
+                    checkable = true,
+                    payload = opt,
+                )
             }
             preselect(allItem, optionItems, l, s)
             adapter.setItems(if (oneDirectionOnly) optionItems else listOf(allItem) + optionItems)
             showList()
+            renderPreview()
 
             val errors = results.mapNotNull { it.second.exceptionOrNull() }
             val help = getString(if (oneDirectionOnly) R.string.direction_help_single else R.string.direction_help)
-            stepHelp.text = if (errors.isNotEmpty() && errors.size == results.size) {
+            footerHelp.text = if (errors.isNotEmpty() && errors.size == results.size) {
                 getString(R.string.error_directions, errors.first().message ?: "") + "\n\n" + help
             } else {
                 help
             }
-            stepHelp.visibility = View.VISIBLE
+            footerHelp.visibility = View.VISIBLE
             updateSaveEnabled()
         }
     }
@@ -664,30 +850,33 @@ class ConfigureActivity : Activity() {
         }
         adapter.notifyDataSetChanged()
         updateSaveEnabled()
+        renderPreview()
     }
 
     private fun updateSaveEnabled() {
-        save.isEnabled = adapter.items.any { it.checked }
+        val enabled = adapter.items.any { it.checked }
+        save.isEnabled = enabled
+        save.alpha = if (enabled) 1f else DISABLED_ALPHA
+    }
+
+    /** La configuration en cours de réglage ; sans sens coché, tous les sens. */
+    private fun directionConfig(): WidgetConfig? {
+        val m = mode ?: return null
+        val l = line ?: return null
+        val s = stop ?: return null
+        val selected = adapter.items.filter { it.checked }.mapNotNull { it.payload as? DirectionOption }
+        val all = selected.isEmpty()
+        val directions = if (all) Directions.allDirections(s) else Directions.toSelection(directionOptions, selected)
+        val label = if (all) Directions.ALL_DIRECTIONS else Directions.label(directionOptions, selected, s)
+        return WidgetConfig(widgetId, m, l, s, directions, label, selectedTheme)
     }
 
     private fun saveConfig() {
-        if (step == Step.AUTO) {
-            saveAutoConfig()
-            return
-        }
-        val m = mode ?: return
-        val l = line ?: return
-        val s = stop ?: return
-        val all = adapter.items.any { it.payload === AllDirections && it.checked }
-        val selected = adapter.items.filter { it.checked }.mapNotNull { it.payload as? DirectionOption }
-        if (!all && selected.isEmpty()) {
+        if (adapter.items.none { it.checked }) {
             Toast.makeText(this, R.string.direction_select_one, Toast.LENGTH_SHORT).show()
             return
         }
-        val directions = if (all) Directions.allDirections(s) else Directions.toSelection(directionOptions, selected)
-        val label = if (all) Directions.ALL_DIRECTIONS else Directions.label(directionOptions, selected, s)
-        val theme = THEME_CHOICES[themeSpinner.selectedItemPosition].first
-        prefs.saveConfig(WidgetConfig(widgetId, m, l, s, directions, label, theme))
+        prefs.saveConfig(directionConfig() ?: return)
         finishSaved()
     }
 
@@ -699,4 +888,85 @@ class ConfigureActivity : Activity() {
         Toast.makeText(this, R.string.saved_toast, Toast.LENGTH_SHORT).show()
         finish()
     }
+
+    // --- Aperçu et couleur -----------------------------------------------------------------------
+
+    private fun renderPreview() {
+        val config = when (step) {
+            Step.DIRECTION -> directionConfig()?.also {
+                previewState = WidgetStates.from(
+                    it, directionResults, null, System.currentTimeMillis(), removeTerminusArrivals = !prefs.hasApiKey,
+                )
+            }
+            Step.AUTO_COLOR -> selectedAutoRow()?.let { AutoMode.configFor(widgetId, it.nearby, selectedTheme) }
+            else -> null
+        } ?: return
+        val options = AppWidgetManager.getInstance(this).getAppWidgetOptions(widgetId)
+        val (widthDp, heightDp) = WidgetRenderer.previewSize(this, options, chosenFormat)
+        val preview = WidgetRenderer.preview(
+            this, config, previewState, prefs.hasApiKey, widthDp, heightDp, System.currentTimeMillis(), chosenFormat,
+        )
+        val density = resources.displayMetrics.density
+        val available = resources.displayMetrics.widthPixels - 2 * resources.getDimension(R.dimen.screen_padding)
+        val scale = min(min(1f, available / (widthDp * density)), PREVIEW_MAX_HEIGHT_DP / heightDp)
+        previewImage.layoutParams = FrameLayout.LayoutParams(
+            (widthDp * density * scale).roundToInt(),
+            (heightDp * density * scale).roundToInt(),
+            Gravity.CENTER_HORIZONTAL,
+        )
+        previewImage.setImageBitmap(preview.bitmap)
+        previewImage.contentDescription = preview.description
+        previewBox.visibility = View.VISIBLE
+    }
+
+    private fun renderSwatches() {
+        swatches.removeAllViews()
+        val gap = (6 * resources.displayMetrics.density).roundToInt()
+        ThemeChoices.available(chosenFormat).forEachIndexed { index, theme ->
+            val cell = layoutInflater.inflate(R.layout.item_swatch, swatches, false)
+            (cell.layoutParams as LinearLayout.LayoutParams).marginStart = if (index == 0) 0 else gap
+            cell.findViewById<View>(R.id.swatch_color).background = swatchFill(theme)
+            cell.findViewById<TextView>(R.id.swatch_label).setText(labelOf(theme))
+            cell.isSelected = theme == selectedTheme
+            cell.setOnClickListener {
+                selectedTheme = theme
+                renderSwatches()
+                renderPreview()
+            }
+            swatches.addView(cell)
+        }
+    }
+
+    private fun labelOf(theme: WidgetTheme): Int = when (theme) {
+        WidgetTheme.AUTO -> R.string.theme_auto
+        WidgetTheme.DARK -> R.string.theme_dark
+        WidgetTheme.LIGHT -> R.string.theme_light
+        WidgetTheme.LINE -> R.string.theme_line
+    }
+
+    private fun swatchFill(theme: WidgetTheme): Drawable = when (theme) {
+        WidgetTheme.DARK -> swatchShape(DARK_SWATCH)
+        WidgetTheme.LIGHT -> swatchShape(LIGHT_SWATCH)
+        WidgetTheme.LINE -> swatchShape(
+            (line ?: selectedAutoRow()?.nearby?.line)?.let { Palettes.lineColors(it).first } ?: Color.GRAY,
+        )
+        // Moitié sombre, moitié claire : la couleur suit le thème du téléphone.
+        WidgetTheme.AUTO -> LayerDrawable(
+            arrayOf(
+                swatchShape(LIGHT_SWATCH),
+                ClipDrawable(swatchShape(DARK_SWATCH), Gravity.START, ClipDrawable.HORIZONTAL).apply { level = CLIP_HALF },
+            ),
+        )
+    }
+
+    private fun swatchShape(color: Int): Drawable = GradientDrawable().apply {
+        val density = resources.displayMetrics.density
+        setColor(color)
+        cornerRadius = 7 * density
+        setStroke((density).roundToInt(), getColor(R.color.outline))
+    }
 }
+
+private const val DISABLED_ALPHA = 0.4f
+private val DARK_SWATCH = 0xFF15171C.toInt()
+private val LIGHT_SWATCH = 0xFFF7F6F1.toInt()

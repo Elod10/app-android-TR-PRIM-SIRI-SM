@@ -186,10 +186,14 @@ class NearbyChoiceActivity : Activity() {
             val view = convertView ?: inflater.inflate(R.layout.item_nearby, parent, false)
             val row = getItem(position)
             val line = row.nearby.line
-            view.findViewById<ImageView>(R.id.nearby_badge).setImageBitmap(BadgeRenderer.render(context, line))
+            view.findViewById<ImageView>(R.id.nearby_badge).setImageBitmap(BadgeRenderer.render(context, line, BADGE_DP))
             view.findViewById<TextView>(R.id.nearby_stop).text = row.nearby.stopName
             view.findViewById<TextView>(R.id.nearby_detail).text = detail(row, line.id == shownLineId)
-            view.findViewById<TextView>(R.id.nearby_wait).text = waitLabel(row)
+            val wait = view.findViewById<TextView>(R.id.nearby_wait)
+            val inMinutes = row.passage?.kind == WaitKind.MINUTES
+            wait.text = waitLabel(row)
+            wait.textSize = if (inMinutes) WAIT_TEXT_SP else WAIT_LABEL_SP
+            view.findViewById<View>(R.id.nearby_unit).visibility = if (inMinutes) View.VISIBLE else View.GONE
 
             val favorite = line.id in favorites
             val star = view.findViewById<ImageButton>(R.id.nearby_star)
@@ -213,7 +217,7 @@ class NearbyChoiceActivity : Activity() {
         private fun waitLabel(row: Row): String {
             val passage = row.passage ?: return if (row.loaded) "—" else ""
             return when (passage.kind) {
-                WaitKind.MINUTES -> "${passage.minutes} min"
+                WaitKind.MINUTES -> passage.minutes.toString()
                 WaitKind.CLOCK -> passage.clock
                 WaitKind.IMMINENT -> "<1 min"
                 WaitKind.AT_STOP -> passage.atStopLabel
@@ -226,5 +230,8 @@ class NearbyChoiceActivity : Activity() {
         const val SHEET_HEIGHT = 0.7f
         const val PASSAGES_SHOWN = 8
         const val LOCATING_POLL_MS = 100L
+        const val BADGE_DP = 32f
+        const val WAIT_TEXT_SP = 30f
+        const val WAIT_LABEL_SP = 18f
     }
 }

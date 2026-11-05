@@ -38,19 +38,18 @@ object Palettes {
     private val INK = 0xFF15171C.toInt()
     private val PAPER = 0xFFF7F6F1.toInt()
 
-    /** Palette d'un widget selon le thème choisi et son format. */
-    fun resolve(theme: WidgetTheme, format: WidgetFormat, line: Line?): Palette {
+    /**
+     * Palette d'un widget selon le thème choisi et son format.
+     *
+     * @param night vrai si le système est en thème sombre : le thème automatique le suit
+     */
+    fun resolve(theme: WidgetTheme, format: WidgetFormat, line: Line?, night: Boolean = true): Palette {
         val color = line?.let { parseColor(it.color) ?: defaultColor(it.mode) } ?: 0xFF546E7A.toInt()
         val on = onColor(color, line?.let { parseColor(it.textColor) })
-        val wantsLine = when (theme) {
-            WidgetTheme.AUTO -> format.lineColorByDefault
-            WidgetTheme.LINE -> true
-            WidgetTheme.DARK, WidgetTheme.LIGHT -> false
-        }
         return when {
             // La liste porte des retards en couleur, illisibles sur une couleur de ligne.
-            wantsLine && line != null && format != WidgetFormat.LISTE -> linePalette(color, on)
-            theme == WidgetTheme.LIGHT -> lightPalette(color, on)
+            theme == WidgetTheme.LINE && line != null && format != WidgetFormat.LISTE -> linePalette(color, on)
+            theme == WidgetTheme.LIGHT || (theme == WidgetTheme.AUTO && !night) -> lightPalette(color, on)
             else -> darkPalette(color, on)
         }
     }

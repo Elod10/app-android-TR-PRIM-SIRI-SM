@@ -42,17 +42,14 @@ object UiText {
         TransportMode.OTHER -> "Téléphérique, funiculaire de Montmartre"
     }
 
-    /** Pseudo-ligne utilisée pour dessiner l'icône d'un mode de transport. */
-    fun modeBadge(mode: TransportMode): Line {
-        val (label, apiMode, color) = when (mode) {
-            TransportMode.METRO -> Triple("M", "metro", "003CA6")
-            TransportMode.RER -> Triple("RER", "rail-rer", "0064B0")
-            TransportMode.TRAIN -> Triple("Train", "rail", "7A2E8C")
-            TransportMode.TRAM -> Triple("T", "tram", "0B7A75")
-            TransportMode.BUS -> Triple("Bus", "bus", "2E7D32")
-            TransportMode.OTHER -> Triple("Câble", "cableway", "546E7A")
-        }
-        return Line(id = "", name = label, shortName = label, mode = apiMode, color = color, textColor = "FFFFFF")
+    /** Pastille de texte d'un mode de transport. */
+    fun modeChip(mode: TransportMode): String = when (mode) {
+        TransportMode.METRO -> "M"
+        TransportMode.RER -> "RER"
+        TransportMode.TRAIN -> "Train"
+        TransportMode.TRAM -> "T"
+        TransportMode.BUS -> "Bus"
+        TransportMode.OTHER -> "Câble"
     }
 
     fun openUrl(activity: Activity, url: String) {

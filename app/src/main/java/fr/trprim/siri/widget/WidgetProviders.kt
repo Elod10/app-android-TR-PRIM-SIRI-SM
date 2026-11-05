@@ -80,6 +80,10 @@ object WidgetProviders {
         ),
     )
 
+    /** L'entrée du catalogue d'un fournisseur. */
+    fun entryOf(providerClassName: String?): WidgetEntry? =
+        catalog.firstOrNull { it.provider.name == providerClassName }
+
     /** Format imposé par le fournisseur, ou null pour l'entrée automatique. */
     fun formatOf(providerClassName: String?): WidgetFormat? =
         catalog.firstOrNull { it.provider.name == providerClassName }?.format
