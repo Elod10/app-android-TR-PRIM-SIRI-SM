@@ -38,6 +38,7 @@ object WidgetUpdater {
     private const val TAG = "TRWidget"
     private const val TICK_INTERVAL_MS = 60_000L
     private const val MAX_STORED_DEPARTURES = 12
+    private val RENDER_QUALITIES = listOf(1f, 0.7f, 0.5f)
 
     private val mutex = Mutex()
 
@@ -48,16 +49,25 @@ object WidgetUpdater {
     fun render(context: Context, widgetId: Int, refreshing: Boolean = false) {
         val prefs = Prefs(context)
         val manager = AppWidgetManager.getInstance(context)
-        val views = WidgetRenderer.build(
-            context = context,
-            widgetId = widgetId,
-            config = prefs.config(widgetId),
-            state = prefs.state(widgetId),
-            hasApiKey = prefs.hasApiKey,
-            refreshing = refreshing,
-            options = manager.getAppWidgetOptions(widgetId),
-        )
-        manager.updateAppWidget(widgetId, views)
+        for (quality in RENDER_QUALITIES) {
+            try {
+                val views = WidgetRenderer.build(
+                    context = context,
+                    widgetId = widgetId,
+                    config = prefs.config(widgetId),
+                    state = prefs.state(widgetId),
+                    hasApiKey = prefs.hasApiKey,
+                    refreshing = refreshing,
+                    options = manager.getAppWidgetOptions(widgetId),
+                    renderScale = quality,
+                )
+                manager.updateAppWidget(widgetId, views)
+                return
+            } catch (e: RuntimeException) {
+                // Le widget est une image : si elle est trop lourde pour le lanceur, on l'allège.
+                Log.w(TAG, "Échec de l'affichage du widget $widgetId (définition $quality)", e)
+            }
+        }
     }
 
     fun renderAll(context: Context) {

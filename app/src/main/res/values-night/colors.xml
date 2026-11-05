@@ -5,11 +5,4 @@
     <color name="card_background">#23272E</color>
     <color name="screen_background">#15181C</color>
     <color name="divider">#33FFFFFF</color>
-
-    <color name="widget_bg">#1F2329</color>
-    <color name="widget_text">#E6E7EA</color>
-    <color name="widget_text_secondary">#A9ADB4</color>
-    <color name="widget_accent">#8AB4F8</color>
-    <color name="widget_warning">#F28B82</color>
-    <color name="widget_icon">#C4C7CE</color>
 </resources>

@@ -16,16 +16,30 @@ prochains passages d'une ligne à un arrêt d'Île-de-France, à partir de l'API
   - **Sens** : l'application interroge PRIM en temps réel sur chaque point d'arrêt (quai) de l'arrêt
     choisi et propose les sens observés (« Vers Porte de Clignancourt »…), ou « Tous les sens ».
     Plusieurs sens/destinations peuvent être cochés (utile pour les branches du RER).
-- **Widget redimensionnable** : pastille de ligne, arrêt, sens, puis pour chaque passage la
-  destination, le temps d'attente (« 3 min », « Imminent », « À quai », « Supprimé »), l'heure,
-  le retard, la voie et le code mission (trains). Couleurs dynamiques (Material You) sur Android 12+,
-  thème clair/sombre.
+- **Widget redimensionnable, du 1×1 au 4×3** : le format s'adapte à la taille du widget, au type de
+  ligne et au sens choisi.
+
+  | Taille | Un sens | Tous les sens |
+  |---|---|---|
+  | 1×1 | Pastille | Pastille (prochain passage) |
+  | 2×1 | Prochain passage et suivant | Prochain passage et suivant |
+  | 2×2 | Grand chiffre et frise ; voie en grand pour les trains | Les deux sens empilés |
+  | 4×1 | Frise des prochains passages | Les deux sens, en compact |
+  | 4×2 | Liste des prochains passages | Les deux sens avec frise ; liste pour les trains |
+  | 4×3 et plus | Liste | Liste |
+
+  Le temps d'attente indique « 3 min », « Imminent », « À quai » ou « Supprimé » ; les retards et
+  les échecs d'actualisation sont signalés en couleur. La liste affiche aussi l'heure, la voie et le
+  code mission des trains.
+- **Couleur du widget**, au choix : automatique (couleur de la ligne pour les formats à grand chiffre,
+  fond sombre pour les autres), sombre, clair ou couleur de la ligne. La liste reste en sombre ou en
+  clair.
 - **Actualisation** : toucher le widget l'actualise immédiatement ; actualisation automatique
   configurable (manuelle, 1, 2, 5, 10, 15 ou 30 min) **uniquement écran allumé** (alarme non
   réveillante : aucune requête quand le téléphone est en veille). Les temps d'attente sont
   recalculés chaque minute sans requête réseau.
-- Plusieurs widgets possibles (un arrêt/sens différent par widget), modifiables via l'icône ✎ du
-  widget, l'écran principal ou l'option « Reconfigurer » du lanceur (Android 12+).
+- Plusieurs widgets possibles (un arrêt/sens différent par widget), modifiables via l'écran principal
+  ou l'option « Reconfigurer » du lanceur (Android 12+).
 
 ## Installation
 
@@ -67,13 +81,14 @@ seule une fois le sens choisi). Adaptez la fréquence d'actualisation à votre q
 - Les arrêts de même nom dans la même commune (un quai par sens) sont regroupés ; le choix du sens
   détermine le(s) quai(s) interrogé(s) et, pour les zones d'arrêt ferroviaires, les directions
   (`DirectionName`, sinon `DestinationName`) retenues.
-- Application 100 % Kotlin, sans AndroidX : widget en `RemoteViews`, interface en vues Android
-  natives, coroutines Kotlin, `HttpURLConnection` + `org.json`.
+- Application 100 % Kotlin, sans AndroidX : widget dessiné en image (`Canvas`, car Android ignore les
+  polices de l'application dans le texte natif d'un widget) et transmis via `RemoteViews`, interface
+  en vues Android natives, coroutines Kotlin, `HttpURLConnection` + `org.json`.
 
 ```
 app/src/main/java/fr/trprim/siri/
 ├── data/     modèles, client PRIM (SIRI), parseur SIRI Lite, référentiel IDFM, sens, préférences
-├── widget/   AppWidgetProvider, rendu RemoteViews, actualisation et planification
+├── widget/   AppWidgetProvider, choix du format et des couleurs, dessin, actualisation et planification
 └── ui/       écran principal (clé, fréquence, widgets) et assistant de configuration
 ```
 
@@ -118,6 +133,9 @@ push (artefact téléchargeable) et publie une release pour chaque tag `v*`.
 ## Licence
 
 Code sous licence [MIT](LICENSE). Les contributions sont les bienvenues (issues et pull requests).
+
+Le widget utilise la police [Barlow](https://github.com/jpt/barlow), sous licence SIL Open Font
+License 1.1 ([texte de la licence](app/src/main/assets/licenses/barlow-OFL.txt)).
 
 ## Données
 

@@ -181,6 +181,19 @@ data class Departure(
     }
 }
 
+/** Apparence choisie pour un widget. */
+enum class WidgetTheme {
+    /** Couleur de ligne pour les formats à grand chiffre, fond sombre pour les autres. */
+    AUTO,
+    DARK,
+    LIGHT,
+    LINE;
+
+    companion object {
+        fun fromName(name: String?): WidgetTheme = entries.firstOrNull { it.name == name } ?: AUTO
+    }
+}
+
 /**
  * Configuration d'un widget : ligne, arrêt et sens.
  *
@@ -194,7 +207,17 @@ data class WidgetConfig(
     val stop: Stop,
     val directions: Map<String, Set<String>>,
     val directionLabel: String,
+    val theme: WidgetTheme = WidgetTheme.AUTO,
 ) {
+    /** Vrai si le widget ne suit qu'un seul sens : un sens coché, ou un seul quai parmi plusieurs. */
+    val isSingleDirection: Boolean
+        get() {
+            if (directions.values.any { it.isEmpty() }) {
+                return directions.size == 1 && stop.stopIds.size > 1
+            }
+            return directions.values.flatten().map(::normalizeLabel).toSet().size == 1
+        }
+
     fun toJson(): JSONObject {
         val dirs = JSONObject()
         directions.forEach { (stopId, keys) -> dirs.put(stopId, JSONArray(keys.toList())) }
@@ -205,6 +228,7 @@ data class WidgetConfig(
             .put("stop", stop.toJson())
             .put("directions", dirs)
             .put("directionLabel", directionLabel)
+            .put("theme", theme.name)
     }
 
     companion object {
@@ -219,6 +243,7 @@ data class WidgetConfig(
                 stop = Stop.fromJson(o.getJSONObject("stop")),
                 directions = dirs,
                 directionLabel = o.optString("directionLabel"),
+                theme = WidgetTheme.fromName(o.optStringOrNull("theme")),
             )
         }
     }

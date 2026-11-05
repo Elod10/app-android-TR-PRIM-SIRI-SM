@@ -6,20 +6,28 @@
     <string name="widget_name">Prochains passages</string>
     <string name="widget_description">Temps réel des prochains passages à un arrêt d\'Île-de-France (API PRIM)</string>
     <string name="widget_not_configured">Widget non configuré</string>
-    <string name="widget_tap_to_configure">Touchez ✎ pour choisir la ligne, l\'arrêt et le sens</string>
-    <string name="widget_missing_key">Clé API PRIM manquante.\nTouchez pour la saisir dans l\'application.</string>
+    <string name="widget_tap_to_configure">Touchez pour choisir la ligne, l\'arrêt et le sens.</string>
+    <string name="widget_missing_key_title">Clé API PRIM manquante</string>
+    <string name="widget_missing_key_body">Touchez pour la saisir dans l\'application.</string>
     <string name="widget_loading">Chargement…</string>
     <string name="widget_no_departure">Aucun passage prévu pour le moment</string>
-    <string name="widget_refreshing">Actualisation…</string>
     <string name="widget_updated_at">Mis à jour à %1$s</string>
     <string name="widget_stale">Actualisation impossible</string>
+    <string name="widget_short_not_configured">Non configuré</string>
+    <string name="widget_short_missing_key">Clé API manquante</string>
+    <string name="widget_short_no_departure">Aucun passage</string>
+    <string name="widget_short_error">Erreur</string>
     <string name="cd_line_badge">Ligne</string>
-    <string name="cd_refresh">Actualiser</string>
-    <string name="cd_configure">Modifier l\'arrêt</string>
     <string name="preview_line">4</string>
     <string name="preview_stop">Châtelet</string>
     <string name="preview_direction">→ Porte de Clignancourt</string>
-    <string name="preview_destination">Porte de Clignancourt</string>
+    <string name="preview_wait">2 min</string>
+    <string name="preview_next">puis 6 min</string>
+    <string name="theme_label">Couleur du widget</string>
+    <string name="theme_auto">Automatique</string>
+    <string name="theme_dark">Sombre</string>
+    <string name="theme_light">Clair</string>
+    <string name="theme_line">Couleur de la ligne</string>
 
     <!-- Écran principal -->
     <string name="main_key_title">Clé API PRIM</string>

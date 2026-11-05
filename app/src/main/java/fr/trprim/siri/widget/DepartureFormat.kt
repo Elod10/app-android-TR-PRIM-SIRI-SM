@@ -29,16 +29,4 @@ object DepartureFormat {
         }
     }
 
-    /** Ligne de détails : heure, retard, voie, code mission. */
-    fun details(d: Departure, mode: String): String {
-        val parts = ArrayList<String>()
-        d.displayTime?.let { parts += clock(it) }
-        if (d.isCancelled) parts += "supprimé"
-        else if (d.delayMinutes > 0) parts += "retard +${d.delayMinutes} min"
-        d.platform?.let { parts += if (mode == "rail") "Voie $it" else "Quai $it" }
-        if (mode == "rail") d.journeyNote?.let { parts += it }
-        return parts.joinToString(" · ")
-    }
-
-    fun isLate(d: Departure): Boolean = d.isCancelled || d.delayMinutes >= 2
 }
