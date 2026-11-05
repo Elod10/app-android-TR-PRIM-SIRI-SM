@@ -49,6 +49,10 @@ enum class WidgetFormat(
         private const val TALL_FROM = 150f
         private const val VERY_TALL_FROM = 250f
 
+        /** Couleur proposée pour un nouveau widget : celle de la ligne, que la liste ne peut pas porter. */
+        fun defaultTheme(format: WidgetFormat?): WidgetTheme =
+            if (format == LISTE) WidgetTheme.DARK else WidgetTheme.LINE
+
         /** Choisit le format selon la taille du widget, le type de ligne et le sens configuré. */
         fun select(widthDp: Float, heightDp: Float, rail: Boolean, singleDirection: Boolean): WidgetFormat {
             val tall = heightDp >= TALL_FROM

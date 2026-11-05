@@ -543,6 +543,20 @@ class WidgetContentTest {
         )
     }
 
+    @Test
+    fun aNewWidgetStartsInTheLineColorExceptTheList() {
+        assertEquals(WidgetTheme.LINE, WidgetFormat.defaultTheme(null))
+        WidgetFormat.entries.filter { it != WidgetFormat.LISTE }.forEach {
+            assertEquals(WidgetTheme.LINE, WidgetFormat.defaultTheme(it))
+        }
+        assertEquals(WidgetTheme.DARK, WidgetFormat.defaultTheme(WidgetFormat.LISTE))
+    }
+
+    @Test
+    fun aWidgetSavedWithoutThemeKeepsItsColors() {
+        assertEquals(WidgetTheme.AUTO, WidgetTheme.fromName(null))
+    }
+
     // --- Mode automatique ------------------------------------------------------------------------
 
     private fun autoModel(

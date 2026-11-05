@@ -192,7 +192,7 @@ class ConfigureActivity : Activity() {
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         themeSpinner.adapter = adapter
-        val current = existing?.theme ?: WidgetTheme.AUTO
+        val current = existing?.theme ?: WidgetFormat.defaultTheme(chosenFormat)
         themeSpinner.setSelection(THEME_CHOICES.indexOfFirst { it.first == current }.coerceAtLeast(0))
     }
 
