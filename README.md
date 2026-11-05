@@ -40,8 +40,8 @@ prochains passages d'une ligne à un arrêt d'Île-de-France, à partir de l'API
   fond sombre pour les autres), sombre, clair ou couleur de la ligne. La liste reste en sombre ou en
   clair.
 - **Actualisation** : toucher le widget l'actualise immédiatement ; actualisation automatique
-  configurable (manuelle, 1, 2, 5, 10, 15 ou 30 min) **uniquement écran allumé** (alarme non
-  réveillante : aucune requête quand le téléphone est en veille). Les temps d'attente sont
+  configurable (manuelle, 1, 2, 5, 10, 15 ou 30 min) **uniquement écran allumé** (alarme exacte mais
+  non réveillante : aucune requête quand le téléphone est en veille). Les temps d'attente sont
   recalculés chaque minute sans requête réseau.
 - Plusieurs widgets possibles (un arrêt/sens différent par widget), modifiables via l'écran principal
   ou l'option « Reconfigurer » du lanceur (Android 12+).

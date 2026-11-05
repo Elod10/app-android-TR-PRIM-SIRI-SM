@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.PowerManager
 import android.util.Log
 import fr.trprim.siri.data.Departure
@@ -29,6 +30,9 @@ import kotlinx.coroutines.sync.withLock
  * des widgets : il recalcule les temps d'attente affichés et relance une requête PRIM quand
  * l'intervalle d'actualisation choisi est écoulé. Comme l'alarme ne réveille pas l'appareil,
  * aucune requête n'est faite écran éteint.
+ *
+ * L'alarme est exacte : depuis Android 12, une alarme simple peut arriver jusqu'à une heure après
+ * l'heure demandée, ce qui figerait les temps d'attente affichés.
  */
 object WidgetUpdater {
 
@@ -183,9 +187,28 @@ object WidgetUpdater {
             alarmManager.cancel(pending)
             return
         }
+        val trigger = nextTickAt(System.currentTimeMillis())
         // RTC (non réveillant) : rien n'est exécuté tant que l'écran est éteint.
-        alarmManager.set(AlarmManager.RTC, System.currentTimeMillis() + TICK_INTERVAL_MS, pending)
+        try {
+            if (canUseExactAlarms(alarmManager)) {
+                alarmManager.setExact(AlarmManager.RTC, trigger, pending)
+            } else {
+                alarmManager.set(AlarmManager.RTC, trigger, pending)
+            }
+        } catch (e: SecurityException) {
+            Log.w(TAG, "Alarme exacte refusée", e)
+            alarmManager.set(AlarmManager.RTC, trigger, pending)
+        }
     }
+
+    /**
+     * Début de la minute suivante. Reprogrammer l'alarme pendant la même minute (ajout ou réglage
+     * d'un widget) garde donc la même échéance au lieu de la repousser.
+     */
+    fun nextTickAt(now: Long): Long = (Math.floorDiv(now, TICK_INTERVAL_MS) + 1) * TICK_INTERVAL_MS
+
+    private fun canUseExactAlarms(alarmManager: AlarmManager): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()
 
     /** Demande une actualisation immédiate (depuis l'application). */
     fun requestRefresh(context: Context, widgetId: Int? = null) {

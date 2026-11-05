@@ -60,6 +60,20 @@ class WidgetContentTest {
     private val allDirections = mapOf("IDFM:1" to emptySet<String>(), "IDFM:2" to emptySet<String>())
     private val oneDirection = mapOf("IDFM:1" to setOf("Château de Vincennes"))
 
+    // --- Actualisation ----------------------------------------------------------------------
+
+    @Test
+    fun tickFallsOnTheNextMinuteWhateverTheMomentItIsScheduled() {
+        val minute = 60_000L
+        val start = 28_000_000L * minute
+        // Reprogrammer pendant la même minute ne repousse pas l'échéance.
+        assertEquals(start + minute, WidgetUpdater.nextTickAt(start))
+        assertEquals(start + minute, WidgetUpdater.nextTickAt(start + 1L))
+        assertEquals(start + minute, WidgetUpdater.nextTickAt(start + minute - 1L))
+        // Une fois déclenché, le tick suivant tombe sur la minute d'après.
+        assertEquals(start + 2L * minute, WidgetUpdater.nextTickAt(start + minute))
+    }
+
     // --- Choix du format ---------------------------------------------------------------------
 
     @Test
