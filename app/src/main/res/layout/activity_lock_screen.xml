@@ -69,6 +69,52 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="@string/lock_notify_help" />
+
+                <!-- Live Update, Android 16 et plus -->
+                <LinearLayout
+                    android:id="@+id/live_section"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginBottom="8dp"
+                        android:background="@color/divider" />
+
+                    <Switch
+                        android:id="@+id/live_switch"
+                        style="@style/Text.RowTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="40dp"
+                        android:text="@string/lock_live_title" />
+
+                    <TextView
+                        style="@style/Text.Help"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/lock_live_help" />
+
+                    <TextView
+                        android:id="@+id/live_status"
+                        style="@style/Text.Status"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:visibility="gone" />
+
+                    <Button
+                        android:id="@+id/live_settings"
+                        style="@style/ActionSecondary"
+                        android:layout_marginTop="10dp"
+                        android:text="@string/lock_live_settings"
+                        android:visibility="gone" />
+                </LinearLayout>
             </LinearLayout>
 
             <!-- Position, pour les widgets qui la suivent -->

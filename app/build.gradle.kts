@@ -13,7 +13,7 @@ val releaseKeystore: String? = System.getenv("RELEASE_KEYSTORE_FILE")?.takeIf { 
 
 android {
     namespace = "fr.trprim.siri"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "fr.trprim.siri"

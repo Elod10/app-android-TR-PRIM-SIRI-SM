@@ -14,6 +14,7 @@ import android.graphics.Canvas
 import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.util.Log
 import fr.trprim.siri.R
 import fr.trprim.siri.data.Line
@@ -27,6 +28,9 @@ import kotlin.math.max
  * Notification d'un widget : les mêmes passages, lisibles sur l'écran de verrouillage de tous les
  * téléphones, même ceux qui n'y acceptent pas de widget. Elle suit le widget : elle est mise à jour
  * chaque fois qu'il est redessiné, donc sans requête de plus, et seulement pendant sa plage horaire.
+ *
+ * Sous Android 16, elle peut être mise en avant (Live Update) pendant sa plage horaire : en tête de
+ * l'écran de verrouillage, avec le prochain passage dans une pastille de la barre d'état.
  */
 object PassageNotifications {
 
@@ -39,6 +43,12 @@ object PassageNotifications {
     private const val TAG = "TRWidget"
     private const val ICON_DP = 40f
 
+    /**
+     * Notification.EXTRA_REQUEST_PROMOTED_ONGOING, ajoutée par Android 16 QPR (36.1) et absente du
+     * SDK 36 : on la donne par sa valeur. Les versions qui ne la connaissent pas l'ignorent.
+     */
+    private const val EXTRA_REQUEST_PROMOTED_ONGOING = "android.requestPromotedOngoing"
+
     /** Vrai si Android laisse l'application afficher cette notification. */
     fun canPost(context: Context): Boolean {
         val granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
@@ -47,6 +57,19 @@ object PassageNotifications {
         val channel = manager.getNotificationChannel(CHANNEL_ID)
         return granted && manager.areNotificationsEnabled() &&
             (channel == null || channel.importance != NotificationManager.IMPORTANCE_NONE)
+    }
+
+    /**
+     * Live Update demandée pour ce widget : l'option est activée et une plage horaire est définie.
+     * Android recommande les Live Updates pour des activités limitées dans le temps, pas permanentes.
+     */
+    fun wantsLiveUpdate(prefs: Prefs, widgetId: Int): Boolean =
+        prefs.liveUpdate(widgetId) && prefs.timeWindow(widgetId) != null
+
+    /** Vrai si Android peut mettre la notification en avant : Android 16 et réglage de l'usager. */
+    fun canPromote(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.BAKLAVA) return false
+        return context.getSystemService(NotificationManager::class.java)?.canPostPromotedNotifications() == true
     }
 
     /** Active ou retire la notification d'un widget. */
@@ -118,10 +141,17 @@ object PassageNotifications {
             .addAction(
                 action(context, R.drawable.ic_refresh, R.string.notification_refresh, WidgetRenderer.refreshPendingIntent(context, widgetId)),
             )
-        if (content.lines.size > 1) {
+        val promoted = Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA && wantsLiveUpdate(prefs, widgetId)
+        // Une Live Update n'accepte pas le style « boîte de réception » : les sens vont à la ligne.
+        if (content.lines.size > 1 && !promoted) {
             builder.setStyle(Notification.InboxStyle().also { style -> content.lines.forEach { style.addLine(it) } })
         } else {
-            builder.setStyle(Notification.BigTextStyle().bigText(content.lines.first()))
+            builder.setStyle(Notification.BigTextStyle().bigText(content.lines.joinToString("\n")))
+        }
+        if (promoted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+            builder.addExtras(Bundle().apply { putBoolean(EXTRA_REQUEST_PROMOTED_ONGOING, true) })
+            // Texte de la pastille de la barre d'état : le prochain passage.
+            NotificationContent.chip(widget.model)?.let { builder.setShortCriticalText(it) }
         }
         if (!proximity) {
             builder.setLargeIcon(badgeIcon(context, config.line))

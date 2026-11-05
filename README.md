@@ -94,6 +94,11 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
     plus, sans son ni vibration. Ses boutons : « Actualiser » et, pour un widget qui suit la position,
     « Me localiser », qui relit la position comme un toucher du widget, téléphone verrouillé compris.
     Android 13 et plus demandent l'autorisation des notifications au moment où on l'active ;
+  - **Live Update** (Android 16), sur option et seulement avec une plage horaire, Android réservant la
+    mise en avant aux moments limités dans le temps : pendant la plage, la notification passe en tête de
+    l'écran de verrouillage et le prochain passage s'affiche dans une pastille de la barre d'état
+    (« 3 min »). Android décide en dernier ressort, et l'usager peut couper les Live Updates de
+    l'application dans les réglages : la notification reste alors ordinaire ;
   - **suivi de la position sans toucher** (widgets automatiques et À proximité), facultatif : le widget
     relit la position à chaque actualisation automatique, donc seulement écran allumé, verrouillé compris.
     Il faut pour cela la permission « Toujours autoriser », demandée uniquement quand on active l'option ;
@@ -204,7 +209,7 @@ app/src/main/java/fr/trprim/siri/
 
 ## Compiler
 
-Prérequis : JDK 17 et SDK Android (plateforme 35).
+Prérequis : JDK 17 et SDK Android (plateforme 36 pour compiler ; l'application vise toujours l'API 35).
 
 ```bash
 ./gradlew testDebugUnitTest   # tests unitaires (parseur SIRI, sens, référentiel, clients PRIM et Tracéo)

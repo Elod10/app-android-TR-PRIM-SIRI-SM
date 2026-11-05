@@ -59,7 +59,8 @@ class LockScreenActivity : Activity() {
         fun summary(context: Context, prefs: Prefs, widgetId: Int): String {
             val parts = ArrayList<String>()
             if (prefs.notifies(widgetId) && PassageNotifications.canPost(context)) {
-                parts += context.getString(R.string.lock_summary_notify)
+                val live = PassageNotifications.wantsLiveUpdate(prefs, widgetId) && PassageNotifications.canPromote(context)
+                parts += context.getString(if (live) R.string.lock_summary_live else R.string.lock_summary_notify)
             }
             if (prefs.followsPosition(widgetId) && PositionReader(context).hasBackgroundAccess) {
                 parts += context.getString(R.string.lock_summary_follow)
@@ -74,6 +75,7 @@ class LockScreenActivity : Activity() {
     private var widgetId = AppWidgetManager.INVALID_APPWIDGET_ID
 
     private lateinit var notifySwitch: Switch
+    private lateinit var liveSwitch: Switch
     private lateinit var followSwitch: Switch
     private lateinit var followStatus: TextView
     private lateinit var followAllow: Button
@@ -99,6 +101,7 @@ class LockScreenActivity : Activity() {
         prefs = Prefs(this)
 
         notifySwitch = findViewById(R.id.notify_switch)
+        liveSwitch = findViewById(R.id.live_switch)
         followSwitch = findViewById(R.id.follow_switch)
         followStatus = findViewById(R.id.follow_status)
         followAllow = findViewById(R.id.follow_allow)
@@ -116,6 +119,15 @@ class LockScreenActivity : Activity() {
         findViewById<View>(R.id.follow_section).visibility = if (follows) View.VISIBLE else View.GONE
 
         notifySwitch.setOnCheckedChangeListener(onNotifyChanged)
+        findViewById<View>(R.id.live_section).visibility =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) View.VISIBLE else View.GONE
+        liveSwitch.isChecked = prefs.liveUpdate(widgetId)
+        liveSwitch.setOnCheckedChangeListener { _, checked ->
+            prefs.setLiveUpdate(widgetId, checked)
+            WidgetUpdater.render(this, widgetId)
+            renderLive()
+        }
+        findViewById<View>(R.id.live_settings).setOnClickListener { openLiveUpdateSettings() }
         followSwitch.isChecked = prefs.followsPosition(widgetId)
         followSwitch.setOnCheckedChangeListener { _, checked ->
             prefs.setFollowsPosition(widgetId, checked)
@@ -163,6 +175,7 @@ class LockScreenActivity : Activity() {
             notifySwitch.isChecked = notifies
             notifySwitch.setOnCheckedChangeListener(onNotifyChanged)
         }
+        renderLive()
         renderFollow()
     }
 
@@ -185,8 +198,42 @@ class LockScreenActivity : Activity() {
 
     // --- Notification ---------------------------------------------------------------------------
 
+    /** Ce qui manque à la Live Update pour s'afficher, dans l'ordre où l'usager peut y remédier. */
+    private fun renderLive() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.BAKLAVA) return
+        val status = findViewById<TextView>(R.id.live_status)
+        val missing = when {
+            !liveSwitch.isChecked -> null
+            !notifySwitch.isChecked -> R.string.lock_live_needs_notify
+            prefs.timeWindow(widgetId) == null -> R.string.lock_live_needs_window
+            !PassageNotifications.canPromote(this) -> R.string.lock_live_blocked
+            else -> null
+        }
+        status.visibility = if (missing != null) View.VISIBLE else View.GONE
+        missing?.let(status::setText)
+        findViewById<View>(R.id.live_settings).visibility =
+            if (missing == R.string.lock_live_blocked) View.VISIBLE else View.GONE
+    }
+
+    private fun openLiveUpdateSettings() {
+        val intents = listOf(
+            // Settings.ACTION_MANAGE_APP_PROMOTED_NOTIFICATIONS (Android 16 QPR), absente du SDK 36.
+            Intent("android.settings.MANAGE_APP_PROMOTED_NOTIFICATIONS").putExtra(Settings.EXTRA_APP_PACKAGE, packageName),
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName),
+        )
+        for (intent in intents) {
+            try {
+                startActivity(intent)
+                return
+            } catch (e: ActivityNotFoundException) {
+                // Écran suivant.
+            }
+        }
+    }
+
     private fun setNotify(enabled: Boolean) {
         PassageNotifications.setEnabled(this, widgetId, enabled)
+        renderLive()
         WidgetUpdater.render(this, widgetId)
     }
 
@@ -247,6 +294,7 @@ class LockScreenActivity : Activity() {
     private fun saveWindow() {
         prefs.setTimeWindow(widgetId, if (someHours) draft else null)
         renderWindow()
+        renderLive()
         // La notification apparaît ou disparaît tout de suite.
         WidgetUpdater.render(this, widgetId)
     }

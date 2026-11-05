@@ -98,6 +98,13 @@ class Prefs(context: Context) {
         widgets.edit().putLong(hiddenKey(widgetId), until).apply()
     }
 
+    /** Vrai si la notification du widget demande à être mise en avant (Live Update, Android 16). */
+    fun liveUpdate(widgetId: Int): Boolean = widgets.getBoolean(liveKey(widgetId), false)
+
+    fun setLiveUpdate(widgetId: Int, enabled: Boolean) {
+        widgets.edit().putBoolean(liveKey(widgetId), enabled).apply()
+    }
+
     /**
      * Vrai si un widget qui suit la position la relit à chaque actualisation, sans qu'on le touche.
      * Il faut aussi la permission « Toujours autoriser », facultative.
@@ -177,6 +184,7 @@ class Prefs(context: Context) {
             .remove(hiddenKey(widgetId))
             .remove(followKey(widgetId))
             .remove(windowKey(widgetId))
+            .remove(liveKey(widgetId))
             .apply()
     }
 
@@ -207,5 +215,6 @@ class Prefs(context: Context) {
         private fun hiddenKey(id: Int) = "hidden_$id"
         private fun followKey(id: Int) = "follow_$id"
         private fun windowKey(id: Int) = "window_$id"
+        private fun liveKey(id: Int) = "live_$id"
     }
 }

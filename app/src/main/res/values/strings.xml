@@ -225,4 +225,11 @@
     <string name="lock_summary_off">Désactivé</string>
     <string name="lock_summary_notify">Notification</string>
     <string name="lock_summary_follow">Position suivie</string>
+    <string name="lock_summary_live">Notification en Live Update</string>
+    <string name="lock_live_title">Mettre en avant (Live Update)</string>
+    <string name="lock_live_help">Android 16 : pendant la plage horaire, la notification passe en tête de l\'écran de verrouillage et le prochain passage s\'affiche dans une pastille de la barre d\'état. Android réserve cette mise en avant aux moments limités dans le temps : elle demande donc une plage horaire.</string>
+    <string name="lock_live_needs_notify">Activez d\'abord la notification.</string>
+    <string name="lock_live_needs_window">Choisissez une plage horaire : la mise en avant ne s\'applique que pendant celle-ci.</string>
+    <string name="lock_live_blocked">Les Live Updates de l\'application sont désactivées dans les réglages d\'Android : la notification reste ordinaire.</string>
+    <string name="lock_live_settings">Ouvrir les réglages des Live Updates</string>
 </resources>
