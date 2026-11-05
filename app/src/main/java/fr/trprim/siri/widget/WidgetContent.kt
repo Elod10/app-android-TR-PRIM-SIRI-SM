@@ -1,5 +1,6 @@
 package fr.trprim.siri.widget
 
+import fr.trprim.siri.data.AutoHint
 import fr.trprim.siri.data.DataSources
 import fr.trprim.siri.data.Departure
 import fr.trprim.siri.data.Directions
@@ -9,6 +10,7 @@ import fr.trprim.siri.data.TraceoClient
 import fr.trprim.siri.data.WidgetConfig
 import fr.trprim.siri.data.WidgetState
 import fr.trprim.siri.data.WidgetTheme
+import fr.trprim.siri.data.formatDistance
 import fr.trprim.siri.data.normalizeLabel
 import kotlin.math.max
 
@@ -46,6 +48,10 @@ enum class WidgetFormat(
         private const val WIDE_FROM = 250f
         private const val TALL_FROM = 150f
         private const val VERY_TALL_FROM = 250f
+
+        /** Couleur proposée pour un nouveau widget : celle de la ligne, que la liste ne peut pas porter. */
+        fun defaultTheme(format: WidgetFormat?): WidgetTheme =
+            if (format == LISTE) WidgetTheme.DARK else WidgetTheme.LINE
 
         /** Choisit le format selon la taille du widget, le type de ligne et le sens configuré. */
         fun select(widthDp: Float, heightDp: Float, rail: Boolean, singleDirection: Boolean): WidgetFormat {
@@ -161,6 +167,10 @@ data class WidgetModel(
     val sourceDetail: String? = null,
     /** Vrai si le relevé dépasse le délai habituel de la source. */
     val oldSnapshot: Boolean = false,
+    /** Mode automatique : message bref affiché à la place de l'heure, par exemple « +3 lignes ». */
+    val autoHint: String? = null,
+    /** Version courte de [autoHint] pour le format Pastille, par exemple « +3 ». */
+    val autoHintShort: String? = null,
 )
 
 object WidgetContent {
@@ -327,7 +337,8 @@ object WidgetContent {
             "Vers ${group.label} : ${group.first.spokenWait}$delay$then."
         }
         val stale = if (model.stale) " Actualisation impossible, données de ${model.timeLabel}." else ""
-        return "$header. $body$stale${describeSource(model)}".trim()
+        val hint = model.autoHint?.let { " $it." }.orEmpty()
+        return "$header. $body$stale${describeSource(model)}$hint".trim()
     }
 
     private fun describeSource(model: WidgetModel): String {
@@ -350,6 +361,8 @@ object WidgetModels {
         heightDp: Float,
         now: Long,
         fixedFormat: WidgetFormat? = null,
+        autoHint: AutoHint? = null,
+        autoDistanceM: Int? = null,
     ): WidgetModel {
         val line = config?.line
         val rail = line?.mode == "rail"
@@ -369,24 +382,34 @@ object WidgetModels {
         // Un relevé se date à l'heure de la source, pas à celle du téléphone.
         val snapshot = state?.takeIf { it.isSnapshot }
         val shownAt = if (snapshot != null) snapshot.dataAt ?: 0L else state?.fetchedAt ?: 0L
+        val hint = autoHint.takeIf { !refreshing }
+        val quiet = refreshing || hint != null
+        // Seuls les formats larges ont la place d'afficher la distance à côté de l'arrêt.
+        val wideHeader = format == WidgetFormat.DEUX_SENS_LARGE || format == WidgetFormat.LISTE
+        val stopName = config?.stop?.name.orEmpty().let { name ->
+            if (autoDistanceM != null && wideHeader) "$name · ${formatDistance(autoDistanceM)}" else name
+        }
         return WidgetModel(
             format = format,
             palette = palette,
             line = line?.let(::badgeOf),
-            stopName = config?.stop?.name.orEmpty(),
+            stopName = stopName,
             passages = passages,
             groups = WidgetContent.directionGroups(passages),
             timeLabel = when {
                 refreshing -> "…"
+                hint != null -> hint.label
                 shownAt > 0L -> DepartureFormat.clock(shownAt)
                 else -> ""
             },
             stale = state?.error != null && passages.isNotEmpty(),
             refreshing = refreshing,
             notice = notice,
-            sourceLabel = if (snapshot != null && !refreshing) TraceoClient.SOURCE_NAME else null,
-            sourceDetail = if (snapshot != null && !refreshing) TraceoClient.SOURCE_DETAIL else null,
-            oldSnapshot = snapshot?.fresh == false && !refreshing,
+            sourceLabel = if (snapshot != null && !quiet) TraceoClient.SOURCE_NAME else null,
+            sourceDetail = if (snapshot != null && !quiet) TraceoClient.SOURCE_DETAIL else null,
+            oldSnapshot = snapshot?.fresh == false && !quiet,
+            autoHint = hint?.label,
+            autoHintShort = hint?.short,
         )
     }
 

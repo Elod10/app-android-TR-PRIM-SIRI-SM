@@ -1,8 +1,10 @@
 package fr.trprim.siri.ui
 
+import android.Manifest
 import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -19,20 +21,26 @@ import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import fr.trprim.siri.R
+import fr.trprim.siri.data.AnchorPolicy
 import fr.trprim.siri.data.DataSources
 import fr.trprim.siri.data.DirectionOption
 import fr.trprim.siri.data.Directions
 import fr.trprim.siri.data.Line
 import fr.trprim.siri.data.PassageRoute
+import fr.trprim.siri.data.PositionFix
+import fr.trprim.siri.data.PositionReader
 import fr.trprim.siri.data.Prefs
 import fr.trprim.siri.data.PrimClient
 import fr.trprim.siri.data.PrimException
+import fr.trprim.siri.data.RankedLine
 import fr.trprim.siri.data.ReferentialRepository
 import fr.trprim.siri.data.Stop
 import fr.trprim.siri.data.TransportMode
 import fr.trprim.siri.data.WidgetConfig
 import fr.trprim.siri.data.WidgetTheme
+import fr.trprim.siri.data.formatDistance
 import fr.trprim.siri.data.normalizeLabel
+import fr.trprim.siri.widget.AutoMode
 import fr.trprim.siri.widget.WidgetFormat
 import fr.trprim.siri.widget.WidgetProviders
 import fr.trprim.siri.widget.WidgetUpdater
@@ -45,10 +53,11 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.IOException
 
 /**
  * Assistant de configuration d'un widget :
- * mode de transport → ligne → arrêt → sens.
+ * mode de transport → ligne → arrêt → sens, ou le mode automatique, qui suit la position.
  */
 class ConfigureActivity : Activity() {
 
@@ -61,12 +70,18 @@ class ConfigureActivity : Activity() {
             WidgetTheme.LIGHT to R.string.theme_light,
             WidgetTheme.LINE to R.string.theme_line,
         )
+
+        private const val REQUEST_LOCATION = 1
+        private const val AUTO_ROWS_SHOWN = 30
     }
 
-    private enum class Step { KEY, MODE, LINE, STOP, DIRECTION }
+    private enum class Step { KEY, MODE, LINE, STOP, DIRECTION, AUTO }
 
     /** Marqueur de l'option « Tous les sens ». */
     private object AllDirections
+
+    /** Marqueur de la ligne « Automatique » de la liste des modes. */
+    private object AutoRow
 
     private val scope = MainScope()
     private var loadJob: Job? = null
@@ -83,6 +98,8 @@ class ConfigureActivity : Activity() {
     private var stop: Stop? = null
     private var viaShortcut = false
     private var directionOptions: List<DirectionOption> = emptyList()
+    private var autoFix: PositionFix? = null
+    private var autoFirst: RankedLine? = null
 
     /** Format choisi dans la liste des widgets du lanceur (null pour l'entrée automatique). */
     private val chosenFormat: WidgetFormat? by lazy {
@@ -175,7 +192,7 @@ class ConfigureActivity : Activity() {
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         themeSpinner.adapter = adapter
-        val current = existing?.theme ?: WidgetTheme.AUTO
+        val current = existing?.theme ?: WidgetFormat.defaultTheme(chosenFormat)
         themeSpinner.setSelection(THEME_CHOICES.indexOfFirst { it.first == current }.coerceAtLeast(0))
     }
 
@@ -193,6 +210,7 @@ class ConfigureActivity : Activity() {
             Step.LINE -> loadLines(forceRefresh)
             Step.STOP -> loadStops(forceRefresh)
             Step.DIRECTION -> loadDirections()
+            Step.AUTO -> startAuto()
         }
     }
 
@@ -202,7 +220,7 @@ class ConfigureActivity : Activity() {
         when (step) {
             Step.DIRECTION -> goTo(if (viaShortcut) Step.MODE else Step.STOP)
             Step.STOP -> goTo(Step.LINE)
-            Step.LINE, Step.KEY -> goTo(Step.MODE)
+            Step.LINE, Step.KEY, Step.AUTO -> goTo(Step.MODE)
             Step.MODE -> super.onBackPressed()
         }
     }
@@ -223,6 +241,7 @@ class ConfigureActivity : Activity() {
             Step.LINE -> 2 to getString(R.string.step_line)
             Step.STOP -> 3 to getString(R.string.step_stop)
             Step.DIRECTION -> 4 to getString(R.string.step_direction)
+            Step.AUTO -> 0 to getString(R.string.step_auto)
         }
         title = if (index == 0) label else getString(R.string.step_counter, index, label)
 
@@ -326,8 +345,13 @@ class ConfigureActivity : Activity() {
     private fun showModes() {
         val hasKey = prefs.hasApiKey
         val items = ArrayList<RowItem>()
+        items += RowItem(
+            title = getString(R.string.auto_row),
+            subtitle = getString(if (existing?.auto == true) R.string.auto_row_active else R.string.auto_row_sub),
+            payload = AutoRow,
+        )
         // Un arrêt choisi avec une clé retirée depuis n'existe pas chez Tracéo : impossible de le garder.
-        existing?.takeIf { DataSources.route(it.stop.stopIds, hasKey) != PassageRoute.RECONFIGURE }?.let { cfg ->
+        existing?.takeIf { !it.auto && DataSources.route(it.stop.stopIds, hasKey) != PassageRoute.RECONFIGURE }?.let { cfg ->
             items += RowItem(
                 title = getString(R.string.keep_current),
                 subtitle = getString(R.string.keep_current_sub, UiText.lineTitle(cfg.line), cfg.stop.name),
@@ -363,6 +387,12 @@ class ConfigureActivity : Activity() {
                     goTo(Step.LINE)
                 }
                 is Step -> goTo(payload)
+                AutoRow -> {
+                    mode = null
+                    line = null
+                    stop = null
+                    goTo(Step.AUTO)
+                }
             }
             Step.LINE -> (item.payload as? Line)?.let {
                 line = it
@@ -374,8 +404,109 @@ class ConfigureActivity : Activity() {
                 goTo(Step.DIRECTION)
             }
             Step.DIRECTION -> toggleDirection(item)
+            Step.AUTO -> {
+                adapter.items.forEach { it.checked = it === item }
+                adapter.notifyDataSetChanged()
+                updateSaveEnabled()
+            }
             Step.KEY -> Unit
         }
+    }
+
+    // --- Mode automatique ------------------------------------------------------------------------
+
+    private fun startAuto() {
+        if (PositionReader(this).hasPreciseAccess) {
+            loadAuto()
+            return
+        }
+        stepHelp.text = getString(R.string.auto_help)
+        stepHelp.visibility = View.VISIBLE
+        showLoading(getString(R.string.auto_loading_position))
+        requestPermissions(
+            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+            REQUEST_LOCATION,
+        )
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != REQUEST_LOCATION || step != Step.AUTO) return
+        val granted = permissions.filterIndexed { i, _ -> grantResults.getOrNull(i) == PackageManager.PERMISSION_GRANTED }
+        when {
+            Manifest.permission.ACCESS_FINE_LOCATION in granted -> loadAuto()
+            Manifest.permission.ACCESS_COARSE_LOCATION in granted ->
+                showMessage(getString(R.string.auto_error_precise), canRetry = true)
+            else -> showMessage(getString(R.string.auto_error_permission), canRetry = true)
+        }
+    }
+
+    private fun loadAuto() {
+        save.isEnabled = false
+        loadJob = scope.launch {
+            val store = AutoMode.store(this@ConfigureActivity)
+            if (store.savedAt() == null) {
+                showLoading(getString(R.string.auto_loading_index))
+                val error = withContext(Dispatchers.IO) {
+                    try {
+                        store.download()
+                        null
+                    } catch (e: IOException) {
+                        e
+                    }
+                }
+                if (error != null) {
+                    showMessage(getString(R.string.auto_error_index, error.message ?: error.javaClass.simpleName), canRetry = true)
+                    return@launch
+                }
+            }
+            showLoading(getString(R.string.auto_loading_position))
+            val fix = PositionReader(this@ConfigureActivity).read()
+            if (fix == null || (fix.accuracyM ?: 0f) > AnchorPolicy.MAX_ACCURACY_M) {
+                showMessage(getString(R.string.auto_error_position), canRetry = true)
+                return@launch
+            }
+            val ranked = withContext(Dispatchers.IO) { AutoMode.ranking(this@ConfigureActivity, fix.point) }?.list.orEmpty()
+            if (ranked.isEmpty()) {
+                showMessage(getString(R.string.auto_error_no_stop), canRetry = true)
+                return@launch
+            }
+            autoFix = fix
+            autoFirst = ranked.first()
+            val current = existing?.takeIf { it.auto }?.line?.id
+            val preselected = ranked.firstOrNull { it.nearby.line.id == current } ?: ranked.first()
+            adapter.setItems(
+                ranked.take(AUTO_ROWS_SHOWN).map { row ->
+                    RowItem(
+                        title = UiText.lineTitle(row.nearby.line),
+                        subtitle = getString(R.string.auto_row_detail, row.nearby.stopName, formatDistance(row.nearby.distanceM)),
+                        badge = row.nearby.line,
+                        checkable = true,
+                        checked = row === preselected,
+                        payload = row,
+                    )
+                },
+            )
+            showList()
+            stepHelp.text = getString(R.string.auto_help)
+            stepHelp.visibility = View.VISIBLE
+            bottomBar.visibility = View.VISIBLE
+            updateSaveEnabled()
+        }
+    }
+
+    private fun saveAutoConfig() {
+        val row = adapter.items.firstOrNull { it.checked }?.payload as? RankedLine ?: return
+        val fix = autoFix ?: return
+        AutoMode.saveConfiguration(
+            context = this,
+            widgetId = widgetId,
+            nearby = row.nearby,
+            fix = fix,
+            theme = THEME_CHOICES[themeSpinner.selectedItemPosition].first,
+            changedByUser = row !== autoFirst,
+        )
+        finishSaved()
     }
 
     // --- Étape 2 : ligne --------------------------------------------------------------------
@@ -523,6 +654,10 @@ class ConfigureActivity : Activity() {
     }
 
     private fun saveConfig() {
+        if (step == Step.AUTO) {
+            saveAutoConfig()
+            return
+        }
         val m = mode ?: return
         val l = line ?: return
         val s = stop ?: return
@@ -536,7 +671,10 @@ class ConfigureActivity : Activity() {
         val label = if (all) Directions.ALL_DIRECTIONS else Directions.label(directionOptions, selected, s)
         val theme = THEME_CHOICES[themeSpinner.selectedItemPosition].first
         prefs.saveConfig(WidgetConfig(widgetId, m, l, s, directions, label, theme))
+        finishSaved()
+    }
 
+    private fun finishSaved() {
         WidgetUpdater.render(this, widgetId)
         WidgetUpdater.requestRefresh(this, widgetId)
         WidgetUpdater.scheduleTick(this)

@@ -211,6 +211,8 @@ data class WidgetConfig(
     val directions: Map<String, Set<String>>,
     val directionLabel: String,
     val theme: WidgetTheme = WidgetTheme.AUTO,
+    /** Vrai si la ligne et l'arrêt suivent la position : ils sont réécrits quand on touche le widget. */
+    val auto: Boolean = false,
 ) {
     /** Vrai si le widget ne suit qu'un seul sens : un sens coché, ou un seul quai parmi plusieurs. */
     val isSingleDirection: Boolean
@@ -232,6 +234,7 @@ data class WidgetConfig(
             .put("directions", dirs)
             .put("directionLabel", directionLabel)
             .put("theme", theme.name)
+            .put("auto", auto)
     }
 
     companion object {
@@ -247,6 +250,7 @@ data class WidgetConfig(
                 directions = dirs,
                 directionLabel = o.optString("directionLabel"),
                 theme = WidgetTheme.fromName(o.optStringOrNull("theme")),
+                auto = o.optBoolean("auto", false),
             )
         }
     }

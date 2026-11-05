@@ -65,6 +65,7 @@ object WidgetUpdater {
                     options = manager.getAppWidgetOptions(widgetId),
                     fixedFormat = WidgetProviders.formatOf(manager.getAppWidgetInfo(widgetId)?.provider?.className),
                     renderScale = quality,
+                    auto = prefs.auto(widgetId),
                 )
                 manager.updateAppWidget(widgetId, views)
                 return
@@ -129,6 +130,9 @@ object WidgetUpdater {
             }
         }
     }
+
+    /** Modifie la configuration d'un widget sans croiser une actualisation en cours. */
+    suspend fun <T> exclusive(block: () -> T): T = mutex.withLock { block() }
 
     private fun isInteractive(context: Context): Boolean =
         context.getSystemService(PowerManager::class.java)?.isInteractive ?: true

@@ -73,8 +73,8 @@
     <string name="main_widget_not_configured">Widget n° %1$d non configuré</string>
     <string name="main_widget_no_data">Pas encore de données</string>
     <string name="main_sources_title">Sources et licences</string>
-    <string name="main_about_traceo">Données © Île-de-France Mobilités, via <a href="https://gotraceo.fr">Tracéo (gotraceo.fr)</a> : Tracéo interroge l\'API PRIM et met ses réponses en cache.\n\nContient des informations de <a href="https://prim.iledefrance-mobilites.fr/">PRIM</a> (Île-de-France Mobilités), présentement mises à disposition aux conditions de la <a href="https://cloud.fabmob.io/s/eYWWJBdM3fQiFNm">Licence Mobilités</a> et de l\'<a href="https://opendatacommons.org/licenses/odbl/1-0/">Open Database License (ODbL)</a>.</string>
-    <string name="main_about_prim">Données © Île-de-France Mobilités. Avec votre clé, le téléphone interroge directement PRIM.\n\nPassages : contient des informations de <a href="https://prim.iledefrance-mobilites.fr/fr/apis/idfm-ivtr-requete_unitaire">Prochains passages (PRIM)</a>, présentement mises à disposition aux conditions de la <a href="https://cloud.fabmob.io/s/eYWWJBdM3fQiFNm">Licence Mobilités</a> et de l\'<a href="https://opendatacommons.org/licenses/odbl/1-0/">Open Database License (ODbL)</a>.\n\nLignes et arrêts : contient des informations de <a href="https://data.iledefrance-mobilites.fr/explore/dataset/referentiel-des-lignes/">Référentiel des lignes</a> et d\'<a href="https://data.iledefrance-mobilites.fr/explore/dataset/arrets-lignes/">Arrêts et lignes associées</a>, présentement mises à disposition aux conditions de l\'<a href="https://opendatacommons.org/licenses/odbl/1-0/">Open Database License (ODbL)</a>.\n\nSans clé, l\'application passe par le cache de <a href="https://gotraceo.fr">Tracéo (gotraceo.fr)</a>, qui interroge PRIM.</string>
+    <string name="main_about_traceo">Données © Île-de-France Mobilités, via <a href="https://gotraceo.fr">Tracéo (gotraceo.fr)</a> : Tracéo interroge l\'API PRIM et met ses réponses en cache.\n\nContient des informations de <a href="https://prim.iledefrance-mobilites.fr/">PRIM</a> (Île-de-France Mobilités), présentement mises à disposition aux conditions de la <a href="https://cloud.fabmob.io/s/eYWWJBdM3fQiFNm">Licence Mobilités</a> et de l\'<a href="https://opendatacommons.org/licenses/odbl/1-0/">Open Database License (ODbL)</a>.\n\nArrêts proches du mode automatique : contient des informations d\'<a href="https://data.iledefrance-mobilites.fr/explore/dataset/arrets-lignes/">Arrêts et lignes associées</a>, d\'<a href="https://data.iledefrance-mobilites.fr/explore/dataset/arrets/">Arrêts</a>, de <a href="https://data.iledefrance-mobilites.fr/explore/dataset/zones-d-arrets/">Zones d\'arrêts</a> et du <a href="https://data.iledefrance-mobilites.fr/explore/dataset/referentiel-des-lignes/">Référentiel des lignes</a>, présentement mises à disposition aux conditions de l\'<a href="https://opendatacommons.org/licenses/odbl/1-0/">Open Database License (ODbL)</a>.</string>
+    <string name="main_about_prim">Données © Île-de-France Mobilités. Avec votre clé, le téléphone interroge directement PRIM.\n\nPassages : contient des informations de <a href="https://prim.iledefrance-mobilites.fr/fr/apis/idfm-ivtr-requete_unitaire">Prochains passages (PRIM)</a>, présentement mises à disposition aux conditions de la <a href="https://cloud.fabmob.io/s/eYWWJBdM3fQiFNm">Licence Mobilités</a> et de l\'<a href="https://opendatacommons.org/licenses/odbl/1-0/">Open Database License (ODbL)</a>.\n\nLignes et arrêts : contient des informations de <a href="https://data.iledefrance-mobilites.fr/explore/dataset/referentiel-des-lignes/">Référentiel des lignes</a> et d\'<a href="https://data.iledefrance-mobilites.fr/explore/dataset/arrets-lignes/">Arrêts et lignes associées</a>, ainsi que, pour le mode automatique, d\'<a href="https://data.iledefrance-mobilites.fr/explore/dataset/arrets/">Arrêts</a> et de <a href="https://data.iledefrance-mobilites.fr/explore/dataset/zones-d-arrets/">Zones d\'arrêts</a>, présentement mises à disposition aux conditions de l\'<a href="https://opendatacommons.org/licenses/odbl/1-0/">Open Database License (ODbL)</a>.\n\nSans clé, l\'application passe par le cache de <a href="https://gotraceo.fr">Tracéo (gotraceo.fr)</a>, qui interroge PRIM.</string>
     <string name="refresh_manual">Manuelle uniquement (toucher le widget)</string>
     <string name="refresh_every_minute">Chaque minute</string>
     <string name="refresh_every_n">Toutes les %1$d minutes</string>
@@ -112,4 +112,29 @@
     <string name="key_optional_row">Ajouter une clé API PRIM</string>
     <string name="key_optional_row_sub">Facultatif : interroge PRIM en direct et ajoute la voie, le câble et le funiculaire</string>
     <string name="key_optional_help">La clé est facultative : sans elle, le widget affiche les données PRIM à travers le cache de Tracéo. Laissez le champ vide pour continuer sans clé.</string>
+
+    <!-- Mode automatique -->
+    <string name="auto_row">Automatique, selon ma position</string>
+    <string name="auto_row_sub">La ligne près de vous, mise à jour quand vous touchez le widget</string>
+    <string name="auto_row_active">Activé : touchez pour revoir les lignes proches</string>
+    <string name="step_auto">Automatique, selon ma position</string>
+    <string name="auto_help">Le widget affichera la ligne cochée. Ensuite, touchez-le pour relire la position, ou touchez-le deux fois de suite pour choisir une autre ligne. La position sert seulement à chercher les arrêts sur ce téléphone : elle n\'est lue qu\'au toucher et n\'est envoyée à personne.</string>
+    <string name="auto_loading_index">Préparation de la liste des arrêts (environ 3 Mo, une seule fois)…</string>
+    <string name="auto_loading_position">Recherche de votre position…</string>
+    <string name="auto_error_permission">Sans accès à la position, le mode automatique ne peut pas trouver les arrêts proches. Vous pouvez l\'autoriser dans les réglages de l\'application. Elle n\'est lue qu\'au toucher du widget et n\'est envoyée à personne.</string>
+    <string name="auto_error_precise">Le mode automatique a besoin de la position exacte : la position approximative peut se tromper de plusieurs kilomètres. Vous pouvez l\'activer dans les réglages de l\'application.</string>
+    <string name="auto_error_position">Position introuvable. Vérifiez que la localisation est activée, puis réessayez.</string>
+    <string name="auto_error_index">Impossible de télécharger la liste des arrêts.\n%1$s</string>
+    <string name="auto_error_no_stop">Aucun arrêt à moins de 2 km. Le mode automatique ne couvre que l\'Île-de-France.</string>
+    <string name="auto_row_detail">%1$s · %2$s</string>
+    <string name="auto_notification_channel">Position du widget</string>
+    <string name="auto_notification_text">Recherche des arrêts proches…</string>
+    <string name="nearby_title">Près de vous</string>
+    <string name="nearby_help">Votre choix reste mémorisé pour ce lieu.</string>
+    <string name="nearby_empty">Aucune ligne à proposer pour le moment.</string>
+    <string name="nearby_shown">Affichée</string>
+    <string name="nearby_towards">vers %1$s</string>
+    <string name="nearby_star">Ligne favorite</string>
+    <string name="nearby_star_add">Ajouter %1$s aux favoris</string>
+    <string name="nearby_star_remove">Retirer %1$s des favoris</string>
 </resources>
