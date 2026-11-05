@@ -564,7 +564,7 @@ private class Scene(
         val noteWidth = if (model.stale) {
             textRight(staleMessage, right, top + 15f + 4.5f, Face.SEMI, 13f, p.late)
         } else {
-            timeLabel(right, top + 15f + 4.7f, 13.5f)
+            timeLabel(right, top + 15f + 4.7f, 13.5f, room = right - textX - measure(model.stopName, Face.SEMI, 18f) - 8f)
         }
         val stop = fit(model.stopName, Face.SEMI, 18f, right - textX - noteWidth - 8f)
         text(stop, textX, headerBase, Face.SEMI, 18f, p.text)
@@ -742,51 +742,62 @@ private class Scene(
         val noteWidth = if (tag != null) {
             lateTag(tag, right, cy + 0.35f * timeSize, timeSize)
         } else {
-            timeLabel(right, cy + 0.35f * timeSize, timeSize, stacked = right - left < WIDE_HEADER)
+            timeLabel(
+                right, cy + 0.35f * timeSize, timeSize,
+                stacked = right - left < WIDE_HEADER,
+                room = right - textX - measure(model.stopName, Face.SEMI, nameSize) - 8f,
+            )
         }
         val stop = fit(model.stopName, Face.SEMI, nameSize, right - textX - noteWidth - 8f)
         text(stop, textX, cy + 0.35f * nameSize, Face.SEMI, nameSize, p.text)
     }
 
     /** L'heure, précédée de la source s'il faut la citer : « Tracéo 22:34 ». */
-    private fun sourcedTime(): String =
-        listOfNotNull(model.sourceLabel, model.timeLabel.takeIf { it.isNotEmpty() }).joinToString(" ")
+    private fun sourcedTime(source: String? = model.sourceLabel): String =
+        listOfNotNull(source, model.timeLabel.takeIf { it.isNotEmpty() }).joinToString(" ")
 
     /**
      * Heure de mise à jour ou du relevé, avec la source s'il faut la citer. Elle passe en couleur si
      * l'actualisation a échoué ou si le relevé est ancien, avec dans ce cas un triangle d'alerte.
      *
      * @param stacked source et heure sur deux lignes, pour laisser sa largeur au nom de l'arrêt
+     * @param room largeur disponible sans rogner le nom de l'arrêt : si elle suffit, la mention complète
+     *             « PRIM via Tracéo 22:34 » remplace « Tracéo 22:34 »
      */
-    private fun timeLabel(right: Float, base: Float, size: Float, stacked: Boolean = false): Float {
+    private fun timeLabel(right: Float, base: Float, size: Float, stacked: Boolean = false, room: Float = 0f): Float {
         val source = model.sourceLabel
         if (source == null && model.timeLabel.isEmpty()) return 0f
         val face = if (timeAlert) Face.SEMI else Face.REGULAR
         val color = if (timeAlert) p.late else p.text3
+        val showsWarning = model.oldSnapshot && !model.stale
+        val gap = 2f
+        val warningWidth = if (showsWarning) gap + size else 0f
         var width = if (source != null && stacked) {
             max(
                 textRight(source, right, base - size * 0.95f, face, size * 0.85f, color),
                 textRight(model.timeLabel, right, base + size * 0.15f, face, size, color),
             )
         } else {
-            textRight(sourcedTime(), right, base, face, size, color)
+            val detailed = sourcedTime(model.sourceDetail)
+            val note = if (measure(detailed, face, size) + warningWidth <= room) detailed else sourcedTime()
+            textRight(note, right, base, face, size, color)
         }
-        if (model.oldSnapshot && !model.stale) {
-            val gap = 2f
+        if (showsWarning) {
             warning(right - width - gap - size, base - 0.35f * size, size, p.late)
-            width += gap + size
+            width += warningWidth
         }
         return width
     }
 
     /**
-     * Pour les petits formats : la source et l'heure du relevé si elles tiennent dans [room], sinon
-     * l'heure seule, sinon rien. Un relevé ancien est précédé d'un triangle d'alerte s'il reste la place.
+     * Pour les petits formats : la mention la plus complète qui tient dans [room], sinon l'heure seule,
+     * sinon rien. Un relevé ancien est précédé d'un triangle d'alerte s'il reste la place.
      */
     private fun snapshotNote(right: Float, base: Float, size: Float, room: Float) {
         val face = if (model.oldSnapshot) Face.SEMI else Face.MEDIUM
         val color = if (model.oldSnapshot) p.late else p.text2
-        val note = listOf(sourcedTime(), model.timeLabel).firstOrNull { measure(it, face, size) <= room } ?: return
+        val note = listOf(sourcedTime(model.sourceDetail), sourcedTime(), model.timeLabel)
+            .firstOrNull { measure(it, face, size) <= room } ?: return
         val width = textRight(note, right, base, face, size, color)
         val gap = 2f
         if (model.oldSnapshot && width + gap + size <= room) {

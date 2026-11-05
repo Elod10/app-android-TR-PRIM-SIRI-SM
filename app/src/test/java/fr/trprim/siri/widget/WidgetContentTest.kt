@@ -434,6 +434,7 @@ class WidgetContentTest {
         val result = model(traceoConfig(), state, hasApiKey = false)
         assertEquals(DepartureFormat.clock(state.dataAt!!), result.timeLabel)
         assertEquals("Tracéo", result.sourceLabel)
+        assertEquals("PRIM via Tracéo", result.sourceDetail)
         assertFalse(result.oldSnapshot)
         assertFalse(result.stale)
     }
@@ -468,6 +469,7 @@ class WidgetContentTest {
         val result = model(config(metro, allDirections), stateOfPrim)
         assertEquals(DepartureFormat.clock(stateOfPrim.fetchedAt), result.timeLabel)
         assertNull(result.sourceLabel)
+        assertNull(result.sourceDetail)
         assertFalse(result.oldSnapshot)
     }
 
@@ -479,6 +481,7 @@ class WidgetContentTest {
         )
         assertEquals("…", result.timeLabel)
         assertNull(result.sourceLabel)
+        assertNull(result.sourceDetail)
         assertFalse(result.oldSnapshot)
     }
 
@@ -487,11 +490,11 @@ class WidgetContentTest {
         val state = snapshotState()
         val time = DepartureFormat.clock(state.dataAt!!)
         assertEquals(
-            "Ligne 1, Bastille. Vers La Défense : 5 minutes. Relevé Tracéo de $time.",
+            "Ligne 1, Bastille. Vers La Défense : 5 minutes. Données PRIM via Tracéo, relevé de $time.",
             WidgetContent.describe(model(traceoConfig(), state, hasApiKey = false)),
         )
         assertEquals(
-            "Ligne 1, Bastille. Vers La Défense : 5 minutes. Relevé Tracéo de $time, ancien.",
+            "Ligne 1, Bastille. Vers La Défense : 5 minutes. Données PRIM via Tracéo, relevé de $time, ancien.",
             WidgetContent.describe(model(traceoConfig(), snapshotState(fresh = false), hasApiKey = false)),
         )
     }

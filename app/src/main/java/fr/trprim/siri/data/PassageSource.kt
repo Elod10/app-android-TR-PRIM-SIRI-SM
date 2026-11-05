@@ -1,6 +1,7 @@
 package fr.trprim.siri.data
 
-// Choix de la source des données : Tracéo sans clé, PRIM et l'open data IDFM avec une clé.
+// Choix de l'accès aux données : sans clé, le cache de Tracéo, qui interroge lui-même PRIM ; avec une
+// clé, PRIM et l'open data IDFM en direct.
 // Ce fichier n'utilise aucune API Android afin d'être testable sur JVM.
 
 /** Passages renvoyés par une source, avec la date du relevé quand elle ne répond pas en direct. */
@@ -46,6 +47,10 @@ object DataSources {
     /** Intervalle d'actualisation réellement appliqué pour le réglage choisi par l'utilisateur. */
     fun refreshMinutes(chosen: Int, hasKey: Boolean): Int =
         if (!hasKey && chosen == 1) TRACEO_MIN_REFRESH_MINUTES else chosen
+
+    /** Intervalles à proposer : seulement ceux qui s'appliquent tels quels avec cette source. */
+    fun refreshChoices(all: List<Int>, hasKey: Boolean): List<Int> =
+        all.filter { refreshMinutes(it, hasKey) == it }
 
     /** Modes proposés à la configuration : le câble et le funiculaire n'existent pas chez Tracéo. */
     fun modes(hasKey: Boolean): List<TransportMode> =

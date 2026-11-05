@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.text.method.LinkMovementMethod
 import android.view.MenuItem
 import android.view.View
 import android.view.inputmethod.InputMethodManager
@@ -157,6 +158,7 @@ class ConfigureActivity : Activity() {
         save.setOnClickListener { saveConfig() }
         findViewById<Button>(R.id.key_portal).setOnClickListener { UiText.openUrl(this, UiText.PRIM_PORTAL_URL) }
         keyContinue.setOnClickListener { submitKey() }
+        findViewById<TextView>(R.id.key_help).movementMethod = LinkMovementMethod.getInstance()
 
         goTo(Step.MODE)
     }

@@ -9,6 +9,8 @@ import android.content.SharedPreferences
 import android.graphics.Typeface
 import android.os.Bundle
 import android.text.InputType
+import android.text.TextUtils
+import android.text.method.LinkMovementMethod
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
@@ -47,8 +49,14 @@ class MainActivity : Activity() {
     private lateinit var keyInput: EditText
     private lateinit var keyStatus: TextView
     private lateinit var keyTest: Button
+    private lateinit var sourceStatus: TextView
+    private lateinit var about: TextView
     private lateinit var widgetsContainer: LinearLayout
     private lateinit var widgetsEmpty: TextView
+    private var appVersion: String? = null
+
+    /** Clé affichée dans le champ, pour le resynchroniser si elle change ailleurs (configuration d'un widget). */
+    private var shownKey = ""
 
     private val widgetsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> refreshWidgetList() }
 
@@ -62,8 +70,13 @@ class MainActivity : Activity() {
         keyTest = findViewById(R.id.key_test)
         widgetsContainer = findViewById(R.id.widgets_container)
         widgetsEmpty = findViewById(R.id.widgets_empty)
+        sourceStatus = findViewById(R.id.source_status)
+        about = findViewById(R.id.about)
+        about.movementMethod = LinkMovementMethod.getInstance()
+        findViewById<TextView>(R.id.key_help).movementMethod = LinkMovementMethod.getInstance()
 
-        keyInput.setText(prefs.apiKey)
+        shownKey = prefs.apiKey
+        keyInput.setText(shownKey)
         findViewById<CheckBox>(R.id.key_show).setOnCheckedChangeListener { _, show ->
             val variation = if (show) InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD else InputType.TYPE_TEXT_VARIATION_PASSWORD
             keyInput.inputType = InputType.TYPE_CLASS_TEXT or variation or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
@@ -74,20 +87,24 @@ class MainActivity : Activity() {
         keyTest.setOnClickListener { testKey() }
         findViewById<Button>(R.id.key_portal).setOnClickListener { UiText.openUrl(this, UiText.PRIM_PORTAL_URL) }
 
-        setupRefreshSpinner()
         findViewById<Button>(R.id.add_widget).setOnClickListener { requestPinWidget() }
 
-        val version = try {
+        appVersion = try {
             packageManager.getPackageInfo(packageName, 0).versionName
         } catch (e: Exception) {
             null
         }
-        findViewById<TextView>(R.id.about).text = getString(R.string.main_about) + (version?.let { "\nVersion $it" } ?: "")
     }
 
     override fun onResume() {
         super.onResume()
         prefs.registerWidgetsListener(widgetsListener)
+        val storedKey = prefs.apiKey
+        if (storedKey != shownKey) {
+            shownKey = storedKey
+            keyInput.setText(storedKey)
+        }
+        renderSource()
         refreshWidgetList()
     }
 
@@ -108,8 +125,10 @@ class MainActivity : Activity() {
         val key = keyInput.text.toString().trim()
         val changed = key != prefs.apiKey
         prefs.apiKey = key
+        shownKey = key
         showKeyStatus(getString(if (key.isEmpty()) R.string.main_key_removed else R.string.main_key_saved), error = false)
         if (changed) {
+            renderSource()
             WidgetUpdater.renderAll(this)
             WidgetUpdater.requestRefresh(this)
         }
@@ -149,11 +168,24 @@ class MainActivity : Activity() {
         keyStatus.setTextColor(getColor(if (error) R.color.error_text else R.color.success_text))
     }
 
+    // --- Source des données ---------------------------------------------------------------------
+
+    /** La source active, les mentions légales et les fréquences proposées dépendent de la clé. */
+    private fun renderSource() {
+        val hasKey = prefs.hasApiKey
+        sourceStatus.setText(if (hasKey) R.string.main_source_prim else R.string.main_source_traceo)
+        about.text = TextUtils.concat(
+            getText(if (hasKey) R.string.main_about_prim else R.string.main_about_traceo),
+            appVersion?.let { "\n\nVersion $it" }.orEmpty(),
+        )
+        setupRefreshSpinner(hasKey)
+    }
+
     // --- Fréquence d'actualisation --------------------------------------------------------------
 
-    private fun setupRefreshSpinner() {
+    private fun setupRefreshSpinner(hasKey: Boolean) {
         val spinner = findViewById<Spinner>(R.id.refresh_spinner)
-        val choices = Prefs.REFRESH_CHOICES
+        val choices = DataSources.refreshChoices(Prefs.REFRESH_CHOICES, hasKey)
         val labels = choices.map { minutes ->
             when (minutes) {
                 0 -> getString(R.string.refresh_manual)
@@ -164,13 +196,14 @@ class MainActivity : Activity() {
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinner.adapter = adapter
-        val current = choices.indexOf(prefs.refreshMinutes).takeIf { it >= 0 }
+        val current = choices.indexOf(DataSources.refreshMinutes(prefs.refreshMinutes, hasKey)).takeIf { it >= 0 }
             ?: choices.indexOf(Prefs.DEFAULT_REFRESH_MINUTES)
         spinner.setSelection(current)
         spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 val minutes = choices[position]
-                if (minutes != prefs.refreshMinutes) {
+                // Comparer à l'intervalle appliqué conserve « Chaque minute » pour le retour d'une clé.
+                if (minutes != DataSources.refreshMinutes(prefs.refreshMinutes, hasKey)) {
                     prefs.refreshMinutes = minutes
                     WidgetUpdater.scheduleTick(this@MainActivity)
                 }

@@ -18,6 +18,14 @@
                 android:text="@string/main_key_title" />
 
             <TextView
+                android:id="@+id/source_status"
+                style="@style/HelpText"
+                android:layout_marginBottom="8dp"
+                android:fontFamily="sans-serif-medium"
+                android:textColor="?android:attr/textColorPrimary" />
+
+            <TextView
+                android:id="@+id/key_help"
                 style="@style/HelpText"
                 android:text="@string/main_key_help" />
 
@@ -118,10 +126,16 @@
                 android:text="@string/main_add_widget" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/about"
-            style="@style/HelpText"
-            android:layout_marginTop="4dp"
-            android:textSize="12sp" />
+        <!-- Sources et licences -->
+        <LinearLayout style="@style/Card">
+
+            <TextView
+                style="@style/SectionTitle"
+                android:text="@string/main_sources_title" />
+
+            <TextView
+                android:id="@+id/about"
+                style="@style/HelpText" />
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>

@@ -1,14 +1,14 @@
 # Temps réel IDF — widget Android (Tracéo / PRIM)
 
 Application Android (APK) fournissant un **widget d'écran d'accueil** qui affiche les prochains
-passages d'une ligne à un arrêt d'Île-de-France. Il fonctionne **sans clé ni compte**, avec deux sources
-de données :
+passages d'une ligne à un arrêt d'Île-de-France. Il fonctionne **sans clé ni compte**. Les passages
+viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'un de ces deux accès :
 
 | | Sans clé (par défaut) | Avec une clé API PRIM |
 |---|---|---|
 | Lignes et arrêts | [Tracéo](https://gotraceo.fr) | Open data IDFM |
-| Passages | Relevé SIRI ET de Tracéo, renouvelé environ toutes les 2 minutes | PRIM en SIRI *StopMonitoring*, appelé par le téléphone |
-| Heure affichée | Heure du relevé, avec la mention « Tracéo » | Heure de la dernière actualisation |
+| Passages | PRIM via le cache de Tracéo : Tracéo interroge PRIM en SIRI ET et met ses réponses en cache, relevé renouvelé environ toutes les 2 minutes | PRIM en direct, en SIRI *StopMonitoring*, appelé par le téléphone |
+| Heure affichée | Heure du relevé, avec « PRIM via Tracéo » si la place le permet, sinon « Tracéo » | Heure de la dernière actualisation |
 | Actualisation la plus rapide | 2 minutes | 1 minute |
 | Voie, câble et funiculaire | Non | Oui |
 
@@ -17,7 +17,7 @@ de données :
 - **Clé API PRIM facultative**, saisie dans l'application (écran principal ou lien sous la liste des
   modes), avec bouton « Tester ». Elle est stockée uniquement sur le téléphone (sauvegarde Android
   désactivée) et n'est jamais envoyée à Tracéo. Vider le champ et enregistrer la retire : les widgets
-  reviennent sur Tracéo.
+  reviennent sur le cache de Tracéo. L'écran principal indique en permanence la source active.
 - **Choix de l'arrêt via un menu en 4 étapes** : mode de transport → ligne → arrêt → sens.
   - Modes : Métro, RER, Train/Transilien, Tramway, Bus/Noctilien, et Câble/Funiculaire avec une clé.
   - Lignes et arrêts de Tracéo ou, avec une clé, des référentiels open data IDFM
@@ -46,18 +46,18 @@ de données :
   Le temps d'attente indique « 3 min », « Imminent », « À quai » ou « Supprimé » ; les retards et
   les échecs d'actualisation sont signalés en couleur. La liste affiche aussi l'heure, la voie (avec
   une clé) et le code mission des trains.
-- **Relevé daté** : sans clé, le widget indique l'heure du relevé et la mention « Tracéo », pas l'heure
-  du téléphone, et signale un relevé ancien (plus de 150 s, ce qui est normal entre 2 h et 5 h). Le
-  format Pastille manque de place : il n'indique que l'heure, et la mention reste dans sa description
-  pour les lecteurs d'écran.
+- **Relevé daté** : sans clé, le widget indique l'heure du relevé de Tracéo, pas celle du téléphone, avec
+  la mention « PRIM via Tracéo » si la place le permet, sinon « Tracéo ». Il signale un relevé ancien
+  (plus de 150 s, ce qui est normal entre 2 h et 5 h). Le format Pastille manque de place : il n'indique
+  que l'heure, et la mention reste dans sa description pour les lecteurs d'écran.
 - **Couleur du widget**, au choix : automatique (couleur de la ligne pour les formats à grand chiffre,
   fond sombre pour les autres), sombre, clair ou couleur de la ligne. La liste reste en sombre ou en
   clair.
 - **Actualisation** : toucher le widget l'actualise immédiatement ; actualisation automatique
   configurable (manuelle, 1, 2, 5, 10, 15 ou 30 min) **uniquement écran allumé** (alarme exacte mais
-  non réveillante : aucune requête quand le téléphone est en veille). Sans clé, « 1 min » vaut 2 min,
-  car le relevé de Tracéo ne change pas plus vite. Les temps d'attente sont recalculés chaque minute
-  sans requête réseau.
+  non réveillante : aucune requête quand le téléphone est en veille). Sans clé, le choix de 1 min n'est
+  pas proposé, car le cache de Tracéo ne change pas plus vite ; il revient avec une clé. Les temps
+  d'attente sont recalculés chaque minute sans requête réseau.
 - Plusieurs widgets possibles (un arrêt/sens différent par widget), modifiables via l'écran principal
   ou l'option « Reconfigurer » du lanceur (Android 12+).
 
@@ -176,8 +176,21 @@ License 1.1 ([texte de la licence](app/src/main/assets/licenses/barlow-OFL.txt))
 
 ## Données
 
-Données © Île-de-France Mobilités, via Tracéo (gotraceo.fr).
+Données © Île-de-France Mobilités, via [Tracéo](https://gotraceo.fr) (gotraceo.fr) : sans clé, Tracéo
+interroge l'API PRIM et met ses réponses en cache.
 
-Selon la page Licences de PRIM, le temps réel relève de la Licence Mobilité, les lignes et arrêts de la
-licence ouverte Etalab ou de l'ODbL. Avec une clé, les données viennent directement de l'API PRIM et des
-référentiels open data IDFM. Cette application n'est affiliée ni à Île-de-France Mobilités ni à Tracéo.
+- **Sans clé** : contient des informations de [PRIM](https://prim.iledefrance-mobilites.fr/)
+  (Île-de-France Mobilités), présentement mises à disposition aux conditions de la
+  [Licence Mobilités](https://cloud.fabmob.io/s/eYWWJBdM3fQiFNm) et de
+  l'[Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/1-0/).
+- **Avec une clé**, passages : contient des informations de
+  [Prochains passages (PRIM)](https://prim.iledefrance-mobilites.fr/fr/apis/idfm-ivtr-requete_unitaire),
+  aux mêmes conditions. L'usage d'une clé est soumis aux
+  [conditions d'utilisation de PRIM](https://prim.iledefrance-mobilites.fr/fr/conditions-utilisation).
+- **Avec une clé**, lignes et arrêts : contient des informations de
+  [Référentiel des lignes](https://data.iledefrance-mobilites.fr/explore/dataset/referentiel-des-lignes/)
+  et d'[Arrêts et lignes associées](https://data.iledefrance-mobilites.fr/explore/dataset/arrets-lignes/),
+  présentement mises à disposition aux conditions de
+  l'[Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/1-0/).
+
+Cette application n'est affiliée ni à Île-de-France Mobilités ni à Tracéo.

@@ -14,8 +14,9 @@ class TraceoException(val kind: Kind, message: String, cause: Throwable? = null)
 }
 
 /**
- * Client de Tracéo (https://gotraceo.fr), source par défaut quand l'usager n'a pas de clé PRIM :
- * lignes, arrêts et cache de passages SIRI ET. Aucune clé ni en-tête particulier.
+ * Client de Tracéo (https://gotraceo.fr), accès par défaut aux données PRIM quand l'usager n'a pas de
+ * clé : Tracéo interroge PRIM et sert ses lignes, ses arrêts et son cache de passages SIRI ET.
+ * Aucune clé ni en-tête particulier.
  *
  * Ce fichier n'utilise aucune API Android afin d'être testable sur JVM.
  *
@@ -29,6 +30,9 @@ class TraceoClient(
     companion object {
         const val BASE_URL = "https://gotraceo.fr"
         const val SOURCE_NAME = "Tracéo"
+
+        /** Version complète de la mention, quand la place le permet : les données restent celles de PRIM. */
+        const val SOURCE_DETAIL = "PRIM via Tracéo"
 
         private const val LINE_PREFIX = "line:IDFM:"
         private const val STOP_PREFIX = "stop_area:IDFM:"

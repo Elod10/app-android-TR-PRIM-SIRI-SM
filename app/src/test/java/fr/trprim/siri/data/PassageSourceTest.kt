@@ -83,6 +83,13 @@ class PassageSourceTest {
     }
 
     @Test
+    fun oneMinuteIsNotOfferedWithoutKey() {
+        val all = listOf(0, 1, 2, 5, 10, 15, 30)
+        assertEquals(listOf(0, 2, 5, 10, 15, 30), DataSources.refreshChoices(all, hasKey = false))
+        assertEquals(all, DataSources.refreshChoices(all, hasKey = true))
+    }
+
+    @Test
     fun cableAndFunicularOnlyWithKey() {
         assertFalse(TransportMode.OTHER in DataSources.modes(hasKey = false))
         assertEquals(TransportMode.entries.size - 1, DataSources.modes(hasKey = false).size)

@@ -157,6 +157,8 @@ data class WidgetModel(
     val notice: Notice?,
     /** Source à citer à côté de l'heure, quand les passages viennent d'un relevé et non du direct. */
     val sourceLabel: String? = null,
+    /** Version complète de [sourceLabel], affichée quand la place le permet. */
+    val sourceDetail: String? = null,
     /** Vrai si le relevé dépasse le délai habituel de la source. */
     val oldSnapshot: Boolean = false,
 )
@@ -329,10 +331,10 @@ object WidgetContent {
     }
 
     private fun describeSource(model: WidgetModel): String {
-        val source = model.sourceLabel ?: return ""
+        val source = model.sourceDetail ?: return ""
         val time = model.timeLabel.takeIf { it.isNotEmpty() }?.let { " de $it" }.orEmpty()
         val old = if (model.oldSnapshot) ", ancien" else ""
-        return " Relevé $source$time$old."
+        return " Données $source, relevé$time$old."
     }
 }
 
@@ -383,6 +385,7 @@ object WidgetModels {
             refreshing = refreshing,
             notice = notice,
             sourceLabel = if (snapshot != null && !refreshing) TraceoClient.SOURCE_NAME else null,
+            sourceDetail = if (snapshot != null && !refreshing) TraceoClient.SOURCE_DETAIL else null,
             oldSnapshot = snapshot?.fresh == false && !refreshing,
         )
     }
