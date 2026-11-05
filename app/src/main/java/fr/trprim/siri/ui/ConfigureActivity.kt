@@ -9,10 +9,12 @@ import android.text.TextWatcher
 import android.view.MenuItem
 import android.view.View
 import android.view.inputmethod.InputMethodManager
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ListView
 import android.widget.ProgressBar
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import fr.trprim.siri.R
@@ -27,7 +29,10 @@ import fr.trprim.siri.data.ReferentialRepository
 import fr.trprim.siri.data.Stop
 import fr.trprim.siri.data.TransportMode
 import fr.trprim.siri.data.WidgetConfig
+import fr.trprim.siri.data.WidgetTheme
 import fr.trprim.siri.data.normalizeLabel
+import fr.trprim.siri.widget.WidgetFormat
+import fr.trprim.siri.widget.WidgetProviders
 import fr.trprim.siri.widget.WidgetUpdater
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -47,6 +52,13 @@ class ConfigureActivity : Activity() {
 
     companion object {
         const val EXTRA_FROM_WIDGET = "fr.trprim.siri.extra.FROM_WIDGET"
+
+        private val THEME_CHOICES = listOf(
+            WidgetTheme.AUTO to R.string.theme_auto,
+            WidgetTheme.DARK to R.string.theme_dark,
+            WidgetTheme.LIGHT to R.string.theme_light,
+            WidgetTheme.LINE to R.string.theme_line,
+        )
     }
 
     private enum class Step { KEY, MODE, LINE, STOP, DIRECTION }
@@ -70,6 +82,14 @@ class ConfigureActivity : Activity() {
     private var viaShortcut = false
     private var directionOptions: List<DirectionOption> = emptyList()
 
+    /** Format choisi dans la liste des widgets du lanceur (null pour l'entrée automatique). */
+    private val chosenFormat: WidgetFormat? by lazy {
+        WidgetProviders.formatOf(AppWidgetManager.getInstance(this).getAppWidgetInfo(widgetId)?.provider?.className)
+    }
+
+    /** Vrai si le format choisi n'affiche qu'un sens : un seul peut alors être coché. */
+    private val oneDirectionOnly: Boolean get() = chosenFormat?.followsOneDirection == true
+
     private lateinit var breadcrumb: TextView
     private lateinit var stepHelp: TextView
     private lateinit var search: EditText
@@ -83,6 +103,7 @@ class ConfigureActivity : Activity() {
     private lateinit var keyStatus: TextView
     private lateinit var keyContinue: Button
     private lateinit var bottomBar: View
+    private lateinit var themeSpinner: Spinner
     private lateinit var save: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -117,7 +138,9 @@ class ConfigureActivity : Activity() {
         keyStatus = findViewById(R.id.key_status)
         keyContinue = findViewById(R.id.key_continue)
         bottomBar = findViewById(R.id.bottom_bar)
+        themeSpinner = findViewById(R.id.theme_spinner)
         save = findViewById(R.id.save)
+        setupThemeSpinner()
 
         adapter = RowAdapter(this)
         list.adapter = adapter
@@ -143,6 +166,15 @@ class ConfigureActivity : Activity() {
     }
 
     private fun resultIntent(): Intent = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+
+    private fun setupThemeSpinner() {
+        val labels = THEME_CHOICES.map { getString(it.second) }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        themeSpinner.adapter = adapter
+        val current = existing?.theme ?: WidgetTheme.AUTO
+        themeSpinner.setSelection(THEME_CHOICES.indexOfFirst { it.first == current }.coerceAtLeast(0))
+    }
 
     // --- Navigation ------------------------------------------------------------------------
 
@@ -412,11 +444,11 @@ class ConfigureActivity : Activity() {
                 RowItem(title = opt.title, subtitle = opt.subtitle, checkable = true, payload = opt)
             }
             preselect(allItem, optionItems, l, s)
-            adapter.setItems(listOf(allItem) + optionItems)
+            adapter.setItems(if (oneDirectionOnly) optionItems else listOf(allItem) + optionItems)
             showList()
 
             val errors = results.mapNotNull { it.second.exceptionOrNull() }
-            val help = getString(R.string.direction_help)
+            val help = getString(if (oneDirectionOnly) R.string.direction_help_single else R.string.direction_help)
             stepHelp.text = if (errors.isNotEmpty() && errors.size == results.size) {
                 getString(R.string.error_directions, errors.first().message ?: "") + "\n\n" + help
             } else {
@@ -427,15 +459,19 @@ class ConfigureActivity : Activity() {
         }
     }
 
-    /** Coche les sens déjà choisis lors d'une précédente configuration du même arrêt. */
+    /**
+     * Coche les sens déjà choisis lors d'une précédente configuration du même arrêt. Pour un nouveau
+     * widget, coche « Tous les sens » si son format affiche les deux sens, ou le seul sens proposé.
+     */
     private fun preselect(allItem: RowItem, optionItems: List<RowItem>, l: Line, s: Stop) {
         val previous = existing?.takeIf { it.line.id == l.id && it.stop.stopIds == s.stopIds }?.directions
-        if (previous == null) {
-            if (directionOptions.none { it.key != null }) allItem.checked = true
-            return
-        }
-        if (s.stopIds.all { previous[it]?.isEmpty() == true }) {
-            allItem.checked = true
+        val wasAllDirections = previous != null && s.stopIds.all { previous[it]?.isEmpty() == true }
+        if (previous == null || wasAllDirections) {
+            when {
+                oneDirectionOnly -> optionItems.singleOrNull()?.checked = true
+                wasAllDirections || chosenFormat?.showsBothDirections == true ||
+                    directionOptions.none { it.key != null } -> allItem.checked = true
+            }
             return
         }
         optionItems.forEach { item ->
@@ -444,6 +480,7 @@ class ConfigureActivity : Activity() {
             val key = opt.key
             item.checked = keys.isEmpty() || (key != null && keys.any { normalizeLabel(it) == normalizeLabel(key) })
         }
+        if (oneDirectionOnly) optionItems.filter { it.checked }.drop(1).forEach { it.checked = false }
     }
 
     private fun toggleDirection(item: RowItem) {
@@ -452,7 +489,9 @@ class ConfigureActivity : Activity() {
         if (item.payload === AllDirections) {
             if (item.checked) adapter.items.forEach { if (it !== item) it.checked = false }
         } else if (item.checked) {
-            adapter.items.firstOrNull { it.payload === AllDirections }?.checked = false
+            adapter.items.forEach { other ->
+                if (other !== item && (oneDirectionOnly || other.payload === AllDirections)) other.checked = false
+            }
         }
         adapter.notifyDataSetChanged()
         updateSaveEnabled()
@@ -474,7 +513,8 @@ class ConfigureActivity : Activity() {
         }
         val directions = if (all) Directions.allDirections(s) else Directions.toSelection(directionOptions, selected)
         val label = if (all) Directions.ALL_DIRECTIONS else Directions.label(directionOptions, selected, s)
-        prefs.saveConfig(WidgetConfig(widgetId, m, l, s, directions, label))
+        val theme = THEME_CHOICES[themeSpinner.selectedItemPosition].first
+        prefs.saveConfig(WidgetConfig(widgetId, m, l, s, directions, label, theme))
 
         WidgetUpdater.render(this, widgetId)
         WidgetUpdater.requestRefresh(this, widgetId)

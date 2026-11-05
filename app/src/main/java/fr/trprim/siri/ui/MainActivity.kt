@@ -1,7 +1,9 @@
 package fr.trprim.siri.ui
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Typeface
@@ -25,7 +27,7 @@ import fr.trprim.siri.data.PrimClient
 import fr.trprim.siri.data.PrimException
 import fr.trprim.siri.widget.BadgeRenderer
 import fr.trprim.siri.widget.DepartureFormat
-import fr.trprim.siri.widget.WidgetRenderer
+import fr.trprim.siri.widget.WidgetProviders
 import fr.trprim.siri.widget.WidgetUpdater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
@@ -230,12 +232,25 @@ class MainActivity : Activity() {
         }
     }
 
+    /** Propose les widgets disponibles, puis demande au lanceur d'ajouter celui qui est choisi. */
     private fun requestPinWidget() {
         val manager = getSystemService(AppWidgetManager::class.java)
-        val pinned = manager != null && manager.isRequestPinAppWidgetSupported &&
-            manager.requestPinAppWidget(WidgetRenderer.providerComponent(this), null, null)
-        if (!pinned) {
-            Toast.makeText(this, R.string.main_add_widget_unsupported, Toast.LENGTH_LONG).show()
+        if (manager == null || !manager.isRequestPinAppWidgetSupported) {
+            showPinUnsupported()
+            return
         }
+        val choices = WidgetChoiceAdapter(WidgetProviders.catalog)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.main_add_widget_title)
+            .setAdapter(choices) { _, position ->
+                val provider = ComponentName(this, choices.getItem(position).provider)
+                if (!manager.requestPinAppWidget(provider, null, null)) showPinUnsupported()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun showPinUnsupported() {
+        Toast.makeText(this, R.string.main_add_widget_unsupported, Toast.LENGTH_LONG).show()
     }
 }

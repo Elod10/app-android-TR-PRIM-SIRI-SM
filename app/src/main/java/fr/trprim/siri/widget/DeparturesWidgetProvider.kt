@@ -15,8 +15,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
-/** Widget « Prochains passages ». */
-class DeparturesWidgetProvider : AppWidgetProvider() {
+/** Widget « Prochains passages » : entrée automatique, et base des formats de [WidgetProviders]. */
+open class DeparturesWidgetProvider : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
@@ -60,7 +60,8 @@ class DeparturesWidgetProvider : AppWidgetProvider() {
     }
 
     override fun onDisabled(context: Context) {
-        WidgetUpdater.cancelTick(context)
+        // Appelé pour chaque format retiré : d'autres widgets peuvent encore avoir besoin du tick.
+        WidgetUpdater.scheduleTick(context)
     }
 
     /**

@@ -11,10 +11,7 @@
     <color name="screen_background">#F2F4F7</color>
     <color name="divider">#1F000000</color>
 
-    <color name="widget_bg">#F5F7FA</color>
-    <color name="widget_text">#1A1C1E</color>
-    <color name="widget_text_secondary">#5F6368</color>
-    <color name="widget_accent">#0A58CA</color>
-    <color name="widget_warning">#C62828</color>
-    <color name="widget_icon">#44474E</color>
+    <!-- Chargement du widget : le widget lui-même est dessiné par WidgetPainter. -->
+    <color name="widget_bg">#15171C</color>
+    <color name="widget_text_secondary">#B7BBC3</color>
 </resources>
