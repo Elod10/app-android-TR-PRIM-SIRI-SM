@@ -245,17 +245,19 @@ data class AutoState(
     val last: GeoPoint? = null,
     /** Distance à l'arrêt affiché. */
     val distanceM: Int? = null,
-    /** Fin de la fenêtre pendant laquelle un second toucher ouvre le choix. */
+    /** Fin de la fenêtre du double toucher : avant cette date, un toucher ouvre le choix des lignes. */
     val choiceUntil: Long = 0L,
-    /** Autres lignes proches, proposées par ce second toucher. */
+    /** Fin du message qui remplace brièvement l'heure sur le widget. */
+    val hintUntil: Long = 0L,
+    /** Autres lignes proches, proposées par le double toucher. */
     val others: Int = 0,
-    /** Motif à signaler sur le widget pendant la même fenêtre. */
+    /** Motif à signaler sur le widget pendant ce message. */
     val message: AutoMessage? = null,
 ) {
-    fun isChoiceOpen(now: Long): Boolean = now < choiceUntil && others > 0
+    fun isChoiceOpen(now: Long): Boolean = now < choiceUntil
 
     fun hint(now: Long): AutoHint? = when {
-        now >= choiceUntil -> null
+        now >= hintUntil -> null
         message != null -> AutoHint(message.label, message.short)
         others > 0 -> AutoHint(if (others == 1) "+1 ligne" else "+$others lignes", "+$others")
         else -> null
@@ -268,15 +270,23 @@ data class AutoState(
         .putOpt("lastLon", last?.lon)
         .putOpt("distance", distanceM)
         .put("choiceUntil", choiceUntil)
+        .put("hintUntil", hintUntil)
         .put("others", others)
         .putOpt("message", message?.name)
 
     companion object {
+        /** Deux touchers plus rapprochés que ce délai ouvrent le choix des lignes. */
+        const val DOUBLE_TAP_MS = 1_500L
+
+        /** Durée du message qui remplace l'heure après une mise à jour. */
+        const val HINT_MS = 4_000L
+
         fun fromJson(o: JSONObject): AutoState = AutoState(
             anchor = point(o, "anchorLat", "anchorLon"),
             last = point(o, "lastLat", "lastLon"),
             distanceM = if (o.has("distance")) o.optInt("distance") else null,
             choiceUntil = o.optLong("choiceUntil"),
+            hintUntil = o.optLong("hintUntil"),
             others = o.optInt("others"),
             message = AutoMessage.entries.firstOrNull { it.name == o.optStringOrNull("message") },
         )

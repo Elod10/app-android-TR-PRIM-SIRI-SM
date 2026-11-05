@@ -21,8 +21,9 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
 - **Mode automatique, selon la position** (première ligne de la liste des modes), compatible avec tous
   les formats et utilisable sans clé :
   - toucher le widget relit la position et affiche la ligne en tête du classement ;
-  - s'il y a d'autres lignes, le widget l'indique pendant 30 secondes (« +3 lignes ») : un second toucher
-    ouvre leur liste, où l'on choisit une ligne, mémorisée pour ce lieu, et où l'on marque ses favoris ;
+  - s'il y a d'autres lignes, le widget l'indique pendant 4 secondes (« +3 lignes ») ;
+  - deux touchers en moins de 1,5 seconde ouvrent la liste des lignes proches, où l'on choisit une ligne,
+    mémorisée pour ce lieu, et où l'on marque ses favoris ;
   - à moins de 100 m de l'endroit où l'arrêt a été choisi, ou dans la marge d'erreur du GPS, l'arrêt ne
     change pas et seuls les passages sont actualisés ;
   - **classement** : le choix fait ici, puis les lignes favorites à moins de 800 m, puis la distance, où le
@@ -223,4 +224,5 @@ interroge l'API PRIM et met ses réponses en cache.
   [Référentiel des lignes](https://data.iledefrance-mobilites.fr/explore/dataset/referentiel-des-lignes/),
   aux mêmes conditions. L'index compilé reste sur le téléphone : il n'est pas redistribué.
 
-Cette application n'est affiliée ni à Île-de-France Mobilités ni à Tracéo.
+Cette application n'est pas affiliée à Île-de-France Mobilités. Sans clé, [Tracéo](https://gotraceo.fr) lui
+fournit les données PRIM.

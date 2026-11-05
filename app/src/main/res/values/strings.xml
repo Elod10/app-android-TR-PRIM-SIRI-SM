@@ -118,7 +118,7 @@
     <string name="auto_row_sub">La ligne près de vous, mise à jour quand vous touchez le widget</string>
     <string name="auto_row_active">Activé : touchez pour revoir les lignes proches</string>
     <string name="step_auto">Automatique, selon ma position</string>
-    <string name="auto_help">Le widget affichera la ligne cochée. Ensuite, touchez-le pour relire la position, puis touchez-le à nouveau dans les 30 secondes pour choisir une autre ligne. La position sert seulement à chercher les arrêts sur ce téléphone : elle n\'est lue qu\'au toucher et n\'est envoyée à personne.</string>
+    <string name="auto_help">Le widget affichera la ligne cochée. Ensuite, touchez-le pour relire la position, ou touchez-le deux fois de suite pour choisir une autre ligne. La position sert seulement à chercher les arrêts sur ce téléphone : elle n\'est lue qu\'au toucher et n\'est envoyée à personne.</string>
     <string name="auto_loading_index">Préparation de la liste des arrêts (environ 3 Mo, une seule fois)…</string>
     <string name="auto_loading_position">Recherche de votre position…</string>
     <string name="auto_error_permission">Sans accès à la position, le mode automatique ne peut pas trouver les arrêts proches. Vous pouvez l\'autoriser dans les réglages de l\'application. Elle n\'est lue qu\'au toucher du widget et n\'est envoyée à personne.</string>

@@ -30,10 +30,6 @@ open class DeparturesWidgetProvider : AppWidgetProvider() {
             WidgetUpdater.ACTION_TICK -> runAsync(context) {
                 WidgetUpdater.refresh(context, WidgetUpdater.widgetIds(context), force = false)
             }
-            WidgetUpdater.ACTION_CHOICE_END -> {
-                val id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
-                if (id != AppWidgetManager.INVALID_APPWIDGET_ID) WidgetUpdater.render(context, id)
-            }
             else -> super.onReceive(context, intent)
         }
     }

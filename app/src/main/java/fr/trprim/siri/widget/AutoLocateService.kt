@@ -5,19 +5,23 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.appwidget.AppWidgetManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import fr.trprim.siri.R
+import fr.trprim.siri.data.Prefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Lit la position quand on touche un widget automatique, puis s'arrête.
@@ -29,6 +33,7 @@ class AutoLocateService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val running = ConcurrentHashMap.newKeySet<Int>()
+    private val active = AtomicInteger()
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -41,27 +46,57 @@ class AutoLocateService : Service() {
             stopWhenIdle()
             return START_NOT_STICKY
         }
-        if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID || !running.add(widgetId)) {
+        if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
             stopWhenIdle()
             return START_NOT_STICKY
         }
+        val now = System.currentTimeMillis()
+        if (Prefs(app).auto(widgetId).isChoiceOpen(now)) {
+            AutoMode.openChoice(app, widgetId)
+            stopWhenIdle()
+            return START_NOT_STICKY
+        }
+        AutoMode.openDoubleTapWindow(app, widgetId, now)
+        if (!running.add(widgetId)) return START_NOT_STICKY
+
+        AutoMode.beginLocating(widgetId)
+        active.incrementAndGet()
         scope.launch {
             try {
-                withTimeoutOrNull(TIMEOUT_MS) { AutoMode.onTap(app, widgetId) }
-                AutoMode.refreshIndexIfStale(app)
+                withTimeoutOrNull(TIMEOUT_MS) { AutoMode.onTap(app, widgetId, now) }
             } catch (t: Exception) {
                 Log.w(TAG, "Échec du mode automatique", t)
             } finally {
+                AutoMode.endLocating(widgetId)
                 running.remove(widgetId)
-                WidgetUpdater.render(app, widgetId)
-                stopWhenIdle()
+            }
+            try {
+                redrawWhenWindowsEnd(app, widgetId)
+                AutoMode.refreshIndexIfStale(app)
+            } catch (t: Exception) {
+                Log.w(TAG, "Échec après la mise à jour du widget", t)
+            } finally {
+                if (active.decrementAndGet() == 0) stopSelf()
             }
         }
         return START_NOT_STICKY
     }
 
+    /** Le toucher redevient un simple toucher, puis l'heure revient à la place du message. */
+    private suspend fun redrawWhenWindowsEnd(app: Context, widgetId: Int) {
+        val prefs = Prefs(app)
+        WidgetUpdater.render(app, widgetId)
+        while (true) {
+            val state = prefs.auto(widgetId)
+            val now = System.currentTimeMillis()
+            val next = listOf(state.choiceUntil, state.hintUntil).filter { it > now }.minOrNull() ?: return
+            delay(next - now)
+            WidgetUpdater.render(app, widgetId)
+        }
+    }
+
     private fun stopWhenIdle() {
-        if (running.isEmpty()) stopSelf()
+        if (active.get() == 0) stopSelf()
     }
 
     private fun promote(): Boolean = try {

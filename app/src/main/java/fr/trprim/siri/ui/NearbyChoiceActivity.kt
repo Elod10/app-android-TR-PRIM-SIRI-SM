@@ -27,14 +27,16 @@ import fr.trprim.siri.widget.BadgeRenderer
 import fr.trprim.siri.widget.Passage
 import fr.trprim.siri.widget.WaitKind
 import fr.trprim.siri.widget.WidgetContent
+import fr.trprim.siri.widget.WidgetUpdater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** Feuille ouverte par le second toucher d'un widget automatique : les lignes proches, à choisir. */
+/** Feuille ouverte par le double toucher d'un widget automatique : les lignes proches, à choisir. */
 class NearbyChoiceActivity : Activity() {
 
     private val scope = MainScope()
@@ -42,6 +44,7 @@ class NearbyChoiceActivity : Activity() {
     private lateinit var adapter: NearbyAdapter
     private lateinit var status: TextView
     private var widgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+    private var chosen = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,23 +69,31 @@ class NearbyChoiceActivity : Activity() {
         list.adapter = adapter
         list.setOnItemClickListener { _, _, position, _ -> choose(adapter.getItem(position).ranked.nearby) }
 
-        // Le prochain toucher du widget relira la position.
+        // Le choix prend la main sur le premier toucher, et le prochain toucher relira la position.
+        AutoMode.markChoosing(widgetId)
         AutoMode.closeChoice(this, widgetId)
         load()
     }
 
     override fun onDestroy() {
         scope.cancel()
+        // Sans choix, l'arrêt ne change pas : seuls les passages sont actualisés.
+        if (widgetId != AppWidgetManager.INVALID_APPWIDGET_ID && !chosen) WidgetUpdater.requestRefresh(this, widgetId)
         super.onDestroy()
     }
 
     private fun load() {
-        val point = prefs.auto(widgetId).last
-        if (point == null) {
-            showStatus(getString(R.string.nearby_empty))
-            return
-        }
         scope.launch {
+            // Le premier toucher lit encore la position : la liste doit partir de la bonne.
+            if (AutoMode.isLocating(widgetId)) {
+                showStatus(getString(R.string.auto_loading_position))
+                while (AutoMode.isLocating(widgetId)) delay(LOCATING_POLL_MS)
+            }
+            val point = prefs.auto(widgetId).last
+            if (point == null) {
+                showStatus(getString(R.string.nearby_empty))
+                return@launch
+            }
             val ranked = withContext(Dispatchers.IO) { AutoMode.ranking(this@NearbyChoiceActivity, point) }?.list.orEmpty()
             if (ranked.isEmpty()) {
                 showStatus(getString(R.string.nearby_empty))
@@ -118,6 +129,7 @@ class NearbyChoiceActivity : Activity() {
     }
 
     private fun choose(nearby: NearbyLine) {
+        chosen = true
         scope.launch {
             AutoMode.choose(this@NearbyChoiceActivity, widgetId, nearby)
             finish()
@@ -210,5 +222,6 @@ class NearbyChoiceActivity : Activity() {
     private companion object {
         const val SHEET_HEIGHT = 0.7f
         const val PASSAGES_SHOWN = 8
+        const val LOCATING_POLL_MS = 100L
     }
 }

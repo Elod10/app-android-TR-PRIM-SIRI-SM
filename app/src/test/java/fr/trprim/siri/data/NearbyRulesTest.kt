@@ -268,31 +268,41 @@ class NearbyRulesTest {
     }
 
     @Test
-    fun theSecondTouchIsOnlyOpenDuringTheWindowAndWithOtherLines() {
-        val state = AutoState(choiceUntil = 1_000L, others = 3)
+    fun onlyATouchInsideTheWindowOpensTheChoice() {
+        val state = AutoState(choiceUntil = 1_000L)
         assertTrue(state.isChoiceOpen(999L))
         assertFalse(state.isChoiceOpen(1_000L))
-        assertFalse(AutoState(choiceUntil = 1_000L, others = 0).isChoiceOpen(999L))
+        assertFalse(AutoState().isChoiceOpen(0L))
+    }
+
+    @Test
+    fun aDoubleTapTakesLessThanTwoSeconds() {
+        assertTrue(AutoState.DOUBLE_TAP_MS < 2_000L)
+    }
+
+    @Test
+    fun theHintDoesNotKeepTheChoiceOpen() {
+        val state = AutoState(hintUntil = 4_000L, others = 3)
+        assertEquals(AutoHint("+3 lignes", "+3"), state.hint(3_999L))
+        assertFalse(state.isChoiceOpen(0L))
     }
 
     @Test
     fun theHintNamesTheOtherLinesThenDisappears() {
-        assertEquals(AutoHint("+3 lignes", "+3"), AutoState(choiceUntil = 1_000L, others = 3).hint(0L))
-        assertEquals(AutoHint("+1 ligne", "+1"), AutoState(choiceUntil = 1_000L, others = 1).hint(0L))
-        assertNull(AutoState(choiceUntil = 1_000L, others = 3).hint(1_000L))
-        assertNull(AutoState(choiceUntil = 1_000L, others = 0).hint(0L))
+        assertEquals(AutoHint("+1 ligne", "+1"), AutoState(hintUntil = 1_000L, others = 1).hint(0L))
+        assertNull(AutoState(hintUntil = 1_000L, others = 3).hint(1_000L))
+        assertNull(AutoState(hintUntil = 1_000L, others = 0).hint(0L))
     }
 
     @Test
     fun aProblemIsShownBeforeTheOtherLines() {
-        val state = AutoState(choiceUntil = 1_000L, others = 3, message = AutoMessage.NO_POSITION)
+        val state = AutoState(hintUntil = 1_000L, others = 3, message = AutoMessage.NO_POSITION)
         assertEquals("GPS indisponible", state.hint(0L)?.label)
-        assertTrue(state.isChoiceOpen(0L))
     }
 
     @Test
     fun stateSurvivesJson() {
-        val state = AutoState(anchor, north(50), 33, 99L, 4, AutoMessage.IMPRECISE)
+        val state = AutoState(anchor, north(50), 33, 99L, 88L, 4, AutoMessage.IMPRECISE)
         assertEquals(state, AutoState.fromJson(JSONObject(state.toJson().toString())))
         assertEquals(AutoState(), AutoState.fromJson(JSONObject(AutoState().toJson().toString())))
     }

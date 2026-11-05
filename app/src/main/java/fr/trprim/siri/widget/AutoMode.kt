@@ -1,5 +1,6 @@
 package fr.trprim.siri.widget
 
+import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.net.ConnectivityManager
 import android.os.SystemClock
@@ -32,18 +33,24 @@ import java.io.File
 import java.io.IOException
 import java.util.Calendar
 import java.util.TimeZone
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Mode automatique : un widget ordinaire dont la ligne et l'arrêt sont réécrits quand on le touche.
  * Le dessin et l'actualisation restent ceux des autres widgets, ce qui garde tous les formats compatibles.
+ *
+ * Un toucher relit la position. Deux touchers rapprochés ouvrent le choix des lignes proches.
  */
 object AutoMode {
 
-    /** Après une mise à jour, un second toucher ouvre le choix pendant cette durée. */
-    const val CHOICE_WINDOW_MS = 30_000L
-
     private const val TAG = "TRWidget"
     private const val INDEX_FILE = "stop_index.bin"
+
+    /** Widgets dont la position est en cours de lecture : la feuille de choix l'attend. */
+    private val locating: MutableSet<Int> = ConcurrentHashMap.newKeySet()
+
+    /** Depuis quand l'usager choisit une ligne : une mise à jour plus ancienne ne doit plus rien changer. */
+    private val choosingSince = ConcurrentHashMap<Int, Long>()
 
     fun store(context: Context): StopIndexStore =
         StopIndexStore(File(context.applicationContext.noBackupFilesDir, INDEX_FILE))
@@ -93,8 +100,45 @@ object AutoMode {
         prefs.saveAuto(widgetId, AutoState(anchor = fix.point, last = fix.point, distanceM = nearby.distanceM))
     }
 
-    /** Toucher du widget, hors fenêtre de choix : relit la position et met à jour le widget. */
-    suspend fun onTap(context: Context, widgetId: Int) {
+    /**
+     * Premier toucher : le prochain toucher du délai ouvrira le choix. Seule la cible du toucher est
+     * changée, sans redessiner l'image, pour que le lanceur la reçoive le plus vite possible.
+     */
+    fun openDoubleTapWindow(context: Context, widgetId: Int, now: Long) {
+        val prefs = Prefs(context)
+        prefs.saveAuto(widgetId, prefs.auto(widgetId).copy(choiceUntil = now + AutoState.DOUBLE_TAP_MS))
+        AppWidgetManager.getInstance(context)
+            .partiallyUpdateAppWidget(widgetId, WidgetRenderer.doubleTapViews(context, widgetId))
+    }
+
+    /** Second toucher reçu par le service, avant que le lanceur ait pris en compte la nouvelle cible. */
+    fun openChoice(context: Context, widgetId: Int) {
+        try {
+            context.startActivity(WidgetRenderer.choiceIntent(context, widgetId))
+        } catch (e: RuntimeException) {
+            Log.w(TAG, "Ouverture du choix refusée", e)
+        }
+    }
+
+    fun beginLocating(widgetId: Int) {
+        locating.add(widgetId)
+    }
+
+    fun endLocating(widgetId: Int) {
+        locating.remove(widgetId)
+    }
+
+    fun isLocating(widgetId: Int): Boolean = widgetId in locating
+
+    /** La feuille de choix vient de s'ouvrir : le toucher précédent ne doit plus changer le widget. */
+    fun markChoosing(widgetId: Int) {
+        choosingSince[widgetId] = System.currentTimeMillis()
+    }
+
+    private fun tookOver(widgetId: Int, tappedAt: Long): Boolean = (choosingSince[widgetId] ?: 0L) >= tappedAt
+
+    /** Toucher du widget : relit la position et met à jour le widget. */
+    suspend fun onTap(context: Context, widgetId: Int, tappedAt: Long) {
         val app = context.applicationContext
         val prefs = Prefs(app)
         val config = prefs.config(widgetId) ?: return
@@ -106,49 +150,62 @@ object AutoMode {
 
         val started = SystemClock.elapsedRealtime()
         val fix = PositionReader(app).read()
-        val current = prefs.auto(widgetId)
-        val decision = AnchorPolicy.decide(current.anchor, fix)
-        Log.i(TAG, "Position en ${SystemClock.elapsedRealtime() - started} ms, précision ${fix?.accuracyM} m : $decision")
+        val before = prefs.auto(widgetId)
+        val decision = AnchorPolicy.decide(before.anchor, fix)
+        val moved = if (fix != null && before.anchor != null) before.anchor.distanceTo(fix.point) else null
+        Log.i(
+            TAG,
+            "Position en ${SystemClock.elapsedRealtime() - started} ms, précision ${fix?.accuracyM} m, " +
+                "à $moved m de l'arrêt choisi : $decision",
+        )
 
         // Une position trop imprécise ne remplace pas la dernière position fiable.
-        val point = if (decision == AnchorDecision.IMPRECISE) current.last ?: fix?.point else fix?.point ?: current.last
+        val point = if (decision == AnchorDecision.IMPRECISE) before.last ?: fix?.point else fix?.point ?: before.last
+        prefs.saveAuto(widgetId, before.copy(last = point))
+        endLocating(widgetId)
+        if (tookOver(widgetId, tappedAt)) return
+
         val ranking = withContext(Dispatchers.IO) { point?.let { rankingEnsuringIndex(app, it) } }
         var message = when (decision) {
             AnchorDecision.NO_FIX -> AutoMessage.NO_POSITION
             AnchorDecision.IMPRECISE -> AutoMessage.IMPRECISE
             else -> null
         }
-        var anchor = current.anchor
+        var anchor = before.anchor
         var shownLineId = config.line.id
         var applied = false
         if (decision == AnchorDecision.MOVED && point != null) {
-            val shown = applyBest(app, prefs, config, ranking)
-            if (shown == null) {
+            val best = pickBest(prefs, config, ranking)
+            if (tookOver(widgetId, tappedAt)) return
+            if (best == null) {
                 message = AutoMessage.NO_STOP
             } else {
+                WidgetUpdater.exclusive {
+                    prefs.saveConfig(best.config)
+                    prefs.saveState(widgetId, best.state)
+                }
                 anchor = point
-                shownLineId = shown.line.id
+                shownLineId = best.nearby.line.id
                 applied = true
             }
         }
         if (!applied) WidgetUpdater.refresh(app, intArrayOf(widgetId), force = true)
+        if (tookOver(widgetId, tappedAt)) return
 
         val lines = ranking?.list.orEmpty()
-        val distance = lines.firstOrNull { it.nearby.line.id == shownLineId }?.nearby?.distanceM ?: current.distanceM
-        val until = System.currentTimeMillis() + CHOICE_WINDOW_MS
+        val latest = prefs.auto(widgetId)
         prefs.saveAuto(
             widgetId,
-            current.copy(
+            latest.copy(
                 anchor = anchor,
                 last = point,
-                distanceM = distance,
-                choiceUntil = until,
+                distanceM = lines.firstOrNull { it.nearby.line.id == shownLineId }?.nearby?.distanceM ?: latest.distanceM,
+                hintUntil = System.currentTimeMillis() + AutoState.HINT_MS,
                 others = lines.count { it.nearby.line.id != shownLineId },
                 message = message,
             ),
         )
         WidgetUpdater.render(app, widgetId)
-        WidgetUpdater.scheduleChoiceEnd(app, widgetId, until)
     }
 
     private fun rankingEnsuringIndex(context: Context, point: GeoPoint): NearbyRanking? {
@@ -164,8 +221,10 @@ object AutoMode {
         return ranking(context, point)
     }
 
-    /** Affiche la meilleure ligne qui a un passage bientôt. Renvoie null si aucune ligne n'est proche. */
-    private suspend fun applyBest(context: Context, prefs: Prefs, config: WidgetConfig, ranking: NearbyRanking?): NearbyLine? {
+    private class Picked(val nearby: NearbyLine, val config: WidgetConfig, val state: WidgetState)
+
+    /** La meilleure ligne qui a un passage bientôt, ou null si aucune ligne n'est proche. */
+    private suspend fun pickBest(prefs: Prefs, config: WidgetConfig, ranking: NearbyRanking?): Picked? {
         val ranked = ranking?.list.orEmpty()
         if (ranked.isEmpty()) return null
         val hasKey = prefs.hasApiKey
@@ -190,11 +249,7 @@ object AutoMode {
             )
         } ?: return null
         val (next, state) = chosen.second
-        WidgetUpdater.exclusive {
-            prefs.saveConfig(next)
-            prefs.saveState(next.widgetId, state)
-        }
-        return chosen.first.nearby
+        return Picked(chosen.first.nearby, next, state)
     }
 
     /** Choix fait dans la feuille : l'affiche et le retient pour ce lieu. */
@@ -202,9 +257,8 @@ object AutoMode {
         val app = context.applicationContext
         val prefs = Prefs(app)
         val config = prefs.config(widgetId) ?: return
-        val auto = prefs.auto(widgetId)
         val now = System.currentTimeMillis()
-        auto.last?.let { prefs.placeChoices = prefs.placeChoices.remember(it, nearby.line.id, now) }
+        prefs.auto(widgetId).last?.let { prefs.placeChoices = prefs.placeChoices.remember(it, nearby.line.id, now) }
         val next = configFor(widgetId, nearby, config.theme)
         val source = DataSources.passageSource(prefs.apiKey, prefs.primFormats)
         val result = withContext(Dispatchers.IO) { fetch(source, nearby) }
@@ -213,17 +267,25 @@ object AutoMode {
             prefs.saveConfig(next)
             prefs.saveState(widgetId, state)
         }
+        val auto = prefs.auto(widgetId)
         prefs.saveAuto(
             widgetId,
-            auto.copy(anchor = auto.last ?: auto.anchor, distanceM = nearby.distanceM, choiceUntil = 0L, others = 0, message = null),
+            auto.copy(
+                anchor = auto.last ?: auto.anchor,
+                distanceM = nearby.distanceM,
+                choiceUntil = 0L,
+                hintUntil = 0L,
+                others = 0,
+                message = null,
+            ),
         )
         WidgetUpdater.render(app, widgetId)
     }
 
-    /** Ferme la fenêtre de choix : le prochain toucher relira la position. */
+    /** Ferme la fenêtre du double toucher : le prochain toucher relira la position. */
     fun closeChoice(context: Context, widgetId: Int) {
         val prefs = Prefs(context)
-        prefs.saveAuto(widgetId, prefs.auto(widgetId).copy(choiceUntil = 0L, others = 0, message = null))
+        prefs.saveAuto(widgetId, prefs.auto(widgetId).copy(choiceUntil = 0L, hintUntil = 0L, message = null))
         WidgetUpdater.render(context, widgetId)
     }
 

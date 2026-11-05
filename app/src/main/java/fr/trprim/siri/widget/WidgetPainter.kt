@@ -754,7 +754,7 @@ private class Scene(
         text(stop, textX, cy + 0.35f * nameSize, Face.SEMI, nameSize, p.text)
     }
 
-    /** Le message du mode automatique se lit mieux que l'heure, qu'il remplace pendant 30 secondes. */
+    /** Le message du mode automatique ressort davantage que l'heure, qu'il remplace brièvement. */
     private fun timeColor(): Int = when {
         model.autoHint != null -> p.text
         timeAlert -> p.late

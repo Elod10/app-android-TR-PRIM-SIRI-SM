@@ -82,16 +82,23 @@ object WidgetRenderer {
         )
     }
 
-    private fun choicePendingIntent(context: Context, widgetId: Int): PendingIntent {
-        val intent = Intent(context, NearbyChoiceActivity::class.java)
+    fun choiceIntent(context: Context, widgetId: Int): Intent =
+        Intent(context, NearbyChoiceActivity::class.java)
             .setData(Uri.parse("trprim://widget/choice/$widgetId"))
             .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-        return PendingIntent.getActivity(
-            context, widgetId, intent,
+
+    private fun choicePendingIntent(context: Context, widgetId: Int): PendingIntent =
+        PendingIntent.getActivity(
+            context, widgetId, choiceIntent(context, widgetId),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-    }
+
+    /** Mise à jour partielle : seule la cible du toucher change, l'image reste en place. */
+    fun doubleTapViews(context: Context, widgetId: Int): RemoteViews =
+        RemoteViews(context.packageName, R.layout.widget_canvas).apply {
+            setOnClickPendingIntent(R.id.widget_root, choicePendingIntent(context, widgetId))
+        }
 
     /** Taille actuelle du widget en dp, selon l'orientation de l'écran. */
     private fun widgetSize(context: Context, options: Bundle?): Pair<Float, Float> {
