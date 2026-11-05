@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.widget.RemoteViews
@@ -18,6 +19,9 @@ import fr.trprim.siri.data.WidgetConfig
 import fr.trprim.siri.data.WidgetState
 import fr.trprim.siri.ui.ConfigureActivity
 import fr.trprim.siri.ui.NearbyChoiceActivity
+
+/** Un widget dessiné pour les écrans de l'application. */
+class WidgetPreview(val bitmap: Bitmap, val description: String)
 
 /** Construit les RemoteViews d'un widget à partir de sa configuration et de son dernier état. */
 object WidgetRenderer {
@@ -47,20 +51,7 @@ object WidgetRenderer {
         val isAuto = config?.auto == true
         // Sans position exacte, le toucher mène à la configuration, qui la redemande.
         val canLocate = isAuto && PositionReader(context).hasPreciseAccess
-        val hint = when {
-            !isAuto -> null
-            !canLocate -> AutoHint(AutoMessage.NEEDS_ACCESS.label, AutoMessage.NEEDS_ACCESS.short)
-            else -> auto?.hint(now)
-        }
-        val model = if (fixedFormat == WidgetFormat.PROXIMITE) {
-            WidgetModels.buildProximity(config, proximity, refreshing, width, height, now, isNight(context), hint)
-        } else {
-            WidgetModels.build(
-                config, state, hasApiKey, refreshing, width, height, now, fixedFormat,
-                autoHint = hint,
-                autoDistanceM = auto?.distanceM.takeIf { isAuto },
-            )
-        }
+        val model = model(context, config, state, hasApiKey, refreshing, width, height, now, fixedFormat, auto, proximity)
         val density = context.resources.displayMetrics.density * renderScale
 
         val views = RemoteViews(context.packageName, R.layout.widget_canvas)
@@ -75,6 +66,56 @@ object WidgetRenderer {
         }
         views.setOnClickPendingIntent(R.id.widget_root, click)
         return views
+    }
+
+    /** Le widget tel qu'il apparaît sur l'écran d'accueil, pour l'accueil et la configuration. */
+    fun preview(
+        context: Context,
+        config: WidgetConfig?,
+        state: WidgetState?,
+        hasApiKey: Boolean,
+        widthDp: Float,
+        heightDp: Float,
+        now: Long,
+        fixedFormat: WidgetFormat?,
+        auto: AutoState? = null,
+        proximity: ProximityState? = null,
+    ): WidgetPreview {
+        val model = model(context, config, state, hasApiKey, false, widthDp, heightDp, now, fixedFormat, auto, proximity)
+        val density = context.resources.displayMetrics.density
+        return WidgetPreview(WidgetPainter.paint(context, model, widthDp, heightDp, density), describe(context, model))
+    }
+
+    private fun model(
+        context: Context,
+        config: WidgetConfig?,
+        state: WidgetState?,
+        hasApiKey: Boolean,
+        refreshing: Boolean,
+        widthDp: Float,
+        heightDp: Float,
+        now: Long,
+        fixedFormat: WidgetFormat?,
+        auto: AutoState?,
+        proximity: ProximityState?,
+    ): WidgetModel {
+        val isAuto = config?.auto == true
+        val night = isNight(context)
+        val hint = when {
+            !isAuto -> null
+            !PositionReader(context).hasPreciseAccess -> AutoHint(AutoMessage.NEEDS_ACCESS.label, AutoMessage.NEEDS_ACCESS.short)
+            else -> auto?.hint(now)
+        }
+        return if (fixedFormat == WidgetFormat.PROXIMITE) {
+            WidgetModels.buildProximity(config, proximity, refreshing, widthDp, heightDp, now, night, hint)
+        } else {
+            WidgetModels.build(
+                config, state, hasApiKey, refreshing, widthDp, heightDp, now, fixedFormat,
+                autoHint = hint,
+                autoDistanceM = auto?.distanceM.takeIf { isAuto },
+                night = night,
+            )
+        }
     }
 
     /** Le service doit partir directement du toucher : c'est ce qui lui donne accès à la position. */
@@ -122,6 +163,12 @@ object WidgetRenderer {
             (if (width > 0) width else maxOf(minWidth, maxWidth)).takeIf { it > 0 }?.toFloat() ?: DEFAULT_WIDTH_DP,
             (if (height > 0) height else maxOf(minHeight, maxHeight)).takeIf { it > 0 }?.toFloat() ?: DEFAULT_HEIGHT_DP,
         )
+    }
+
+    /** Taille d'un aperçu : celle du widget si le lanceur l'a donnée, sinon celle de son format. */
+    fun previewSize(context: Context, options: Bundle?, format: WidgetFormat?): Pair<Float, Float> {
+        val known = (options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0) ?: 0) > 0
+        return if (known || format == null) widgetSize(context, options) else format.baseWidth to format.baseHeight
     }
 
     /** Le widget étant une image, sa description porte tout le contenu pour les lecteurs d'écran. */

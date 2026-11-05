@@ -186,7 +186,7 @@ data class Departure(
 
 /** Apparence choisie pour un widget. */
 enum class WidgetTheme {
-    /** Couleur de ligne pour les formats à grand chiffre, fond sombre pour les autres. */
+    /** Sombre ou clair, selon le thème du système. */
     AUTO,
     DARK,
     LIGHT,

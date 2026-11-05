@@ -4,17 +4,17 @@
     android:layout_height="wrap_content"
     android:descendantFocusability="blocksDescendants"
     android:gravity="center_vertical"
-    android:minHeight="56dp"
+    android:minHeight="64dp"
     android:orientation="horizontal"
     android:paddingStart="@dimen/screen_padding"
     android:paddingTop="6dp"
-    android:paddingEnd="4dp"
+    android:paddingEnd="5dp"
     android:paddingBottom="6dp">
 
     <ImageView
         android:id="@+id/nearby_badge"
         android:layout_width="wrap_content"
-        android:layout_height="28dp"
+        android:layout_height="32dp"
         android:layout_marginEnd="12dp"
         android:adjustViewBounds="true"
         android:contentDescription="@string/cd_line_badge"
@@ -28,39 +28,44 @@
 
         <TextView
             android:id="@+id/nearby_stop"
+            style="@style/Text.RowTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="?android:attr/textColorPrimary"
-            android:textSize="16sp" />
+            android:maxLines="1" />
 
         <TextView
             android:id="@+id/nearby_detail"
+            style="@style/Text.RowSubtitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="?android:attr/textColorSecondary"
-            android:textSize="13sp" />
+            android:maxLines="1" />
     </LinearLayout>
 
     <TextView
         android:id="@+id/nearby_wait"
+        style="@style/Text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
-        android:textColor="?android:attr/textColorPrimary"
-        android:textSize="16sp"
-        android:textStyle="bold" />
+        android:fontFamily="@font/barlow_condensed_bold"
+        android:textSize="30sp" />
+
+    <TextView
+        android:id="@+id/nearby_unit"
+        style="@style/Text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="3dp"
+        android:fontFamily="@font/barlow_semicondensed_semibold"
+        android:text="@string/nearby_unit"
+        android:textSize="14sp" />
 
     <ImageButton
         android:id="@+id/nearby_star"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_marginStart="4dp"
-        android:background="?android:attr/selectableItemBackgroundBorderless"
+        style="@style/IconAction"
+        android:layout_marginStart="2dp"
         android:contentDescription="@string/nearby_star"
-        android:scaleType="center"
         android:src="@drawable/ic_star_border" />
 </LinearLayout>

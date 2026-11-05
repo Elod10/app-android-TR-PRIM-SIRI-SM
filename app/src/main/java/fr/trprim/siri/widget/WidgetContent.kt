@@ -26,19 +26,17 @@ enum class WidgetFormat(
     val baseWidth: Float,
     val baseHeight: Float,
     val radius: Float,
-    /** Vrai pour les formats à grand chiffre, en couleur de ligne avec le thème automatique. */
-    val lineColorByDefault: Boolean,
 ) {
-    PASTILLE(84f, 92f, 22f, true),
-    UN_SENS(172f, 92f, 24f, false),
-    GRAND_CHIFFRE(172f, 192f, 28f, true),
-    FRISE(348f, 92f, 28f, false),
-    COMPACT(348f, 92f, 28f, false),
-    DEUX_SENS(172f, 192f, 28f, false),
-    TRAIN(172f, 192f, 28f, false),
-    DEUX_SENS_LARGE(348f, 192f, 28f, true),
-    LISTE(348f, 192f, 28f, false),
-    PROXIMITE(348f, 192f, 28f, false);
+    PASTILLE(84f, 92f, 22f),
+    UN_SENS(172f, 92f, 24f),
+    GRAND_CHIFFRE(172f, 192f, 28f),
+    FRISE(348f, 92f, 28f),
+    COMPACT(348f, 92f, 28f),
+    DEUX_SENS(172f, 192f, 28f),
+    TRAIN(172f, 192f, 28f),
+    DEUX_SENS_LARGE(348f, 192f, 28f),
+    LISTE(348f, 192f, 28f),
+    PROXIMITE(348f, 192f, 28f);
 
     /** Échelle du dessin : le format s'agrandit avec le widget, dans des limites lisibles. */
     fun sceneScale(widthDp: Float, heightDp: Float): Float =
@@ -447,11 +445,12 @@ object WidgetModels {
         fixedFormat: WidgetFormat? = null,
         autoHint: AutoHint? = null,
         autoDistanceM: Int? = null,
+        night: Boolean = true,
     ): WidgetModel {
         val line = config?.line
         val rail = line?.mode == "rail"
         val format = fixedFormat ?: WidgetFormat.select(widthDp, heightDp, rail, config?.isSingleDirection ?: true)
-        val palette = Palettes.resolve(config?.theme ?: WidgetTheme.AUTO, format, line)
+        val palette = Palettes.resolve(config?.theme ?: WidgetTheme.AUTO, format, line, night)
 
         val upcoming = if (config != null && state != null) Directions.upcoming(state.departures, now) else emptyList()
         val passages = upcoming.map { WidgetContent.passage(it, now, line?.mode.orEmpty()) }

@@ -1,12 +1,14 @@
 package fr.trprim.siri.widget
 
 import android.content.Context
+import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
+import fr.trprim.siri.R
 import fr.trprim.siri.data.Line
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -24,9 +26,9 @@ object BadgeRenderer {
 
         val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = fg
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            typeface = labelFace(context)
             textAlign = Paint.Align.CENTER
-            textSize = h * if (label.length <= 3) 0.58f else 0.48f
+            textSize = h * if (label.length <= 3) 0.64f else 0.54f
         }
         val textWidth = textPaint.measureText(label)
         val w = max(h, (textWidth + h * 0.6f).roundToInt())
@@ -49,6 +51,12 @@ object BadgeRenderer {
         val y = h / 2f - (textPaint.descent() + textPaint.ascent()) / 2f
         canvas.drawText(label, w / 2f, y, textPaint)
         return bmp
+    }
+
+    private fun labelFace(context: Context): Typeface = try {
+        context.resources.getFont(R.font.barlow_condensed_bold)
+    } catch (e: Resources.NotFoundException) {
+        Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
     }
 
     fun parseColor(hex: String?): Int? {

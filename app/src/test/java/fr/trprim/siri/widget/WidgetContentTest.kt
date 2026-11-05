@@ -133,7 +133,6 @@ class WidgetContentTest {
             widthDp = 348f, heightDp = 192f, now = now, fixedFormat = WidgetFormat.PASTILLE,
         )
         assertEquals(WidgetFormat.PASTILLE, chosen.format)
-        assertTrue("La couleur automatique suit le format choisi", chosen.palette.isLine)
 
         val automatic = WidgetModels.build(
             config(metro, oneDirection), state(dep("A", 5)), hasApiKey = true, refreshing = false,
@@ -335,22 +334,21 @@ class WidgetContentTest {
     // --- Thèmes ------------------------------------------------------------------------------
 
     @Test
-    fun autoThemeUsesLineColorOnBigNumberFormatsOnly() {
-        fun isLine(format: WidgetFormat, theme: WidgetTheme = WidgetTheme.AUTO) = Palettes.resolve(theme, format, metro).isLine
+    fun onlyTheLineThemeUsesTheLineColor() {
+        fun isLine(format: WidgetFormat, theme: WidgetTheme) = Palettes.resolve(theme, format, metro).isLine
 
-        assertTrue(isLine(WidgetFormat.PASTILLE))
-        assertTrue(isLine(WidgetFormat.GRAND_CHIFFRE))
-        assertTrue(isLine(WidgetFormat.DEUX_SENS_LARGE))
-        assertFalse(isLine(WidgetFormat.UN_SENS))
-        assertFalse(isLine(WidgetFormat.FRISE))
-        assertFalse(isLine(WidgetFormat.COMPACT))
-        assertFalse(isLine(WidgetFormat.DEUX_SENS))
-        assertFalse(isLine(WidgetFormat.TRAIN))
-        assertFalse(isLine(WidgetFormat.LISTE))
-
+        WidgetFormat.entries.forEach { assertFalse("$it", isLine(it, WidgetTheme.AUTO)) }
         assertFalse(isLine(WidgetFormat.PASTILLE, WidgetTheme.DARK))
         assertTrue(isLine(WidgetFormat.FRISE, WidgetTheme.LINE))
         assertFalse("La liste n'a pas de thème couleur de ligne", isLine(WidgetFormat.LISTE, WidgetTheme.LINE))
+    }
+
+    @Test
+    fun autoThemeFollowsTheSystemTheme() {
+        val dark = Palettes.resolve(WidgetTheme.DARK, WidgetFormat.PASTILLE, metro)
+        val light = Palettes.resolve(WidgetTheme.LIGHT, WidgetFormat.PASTILLE, metro)
+        assertEquals(dark.background, Palettes.resolve(WidgetTheme.AUTO, WidgetFormat.PASTILLE, metro, night = true).background)
+        assertEquals(light.background, Palettes.resolve(WidgetTheme.AUTO, WidgetFormat.PASTILLE, metro, night = false).background)
     }
 
     @Test

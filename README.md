@@ -14,10 +14,10 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
 
 ## Fonctionnalités
 
-- **Clé API PRIM facultative**, saisie dans l'application (écran principal ou lien sous la liste des
+- **Clé API PRIM facultative**, saisie dans l'application (Réglages ou lien sous la liste des
   modes), avec bouton « Tester ». Elle est stockée uniquement sur le téléphone (sauvegarde Android
   désactivée) et n'est jamais envoyée à Tracéo. Vider le champ et enregistrer la retire : les widgets
-  reviennent sur le cache de Tracéo. L'écran principal indique en permanence la source active.
+  reviennent sur le cache de Tracéo. Les réglages indiquent la source active.
 - **Mode automatique, selon la position** (première ligne de la liste des modes), compatible avec tous
   les formats et utilisable sans clé :
   - toucher le widget relit la position et affiche la ligne en tête du classement ;
@@ -65,10 +65,10 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
   la mention « PRIM via Tracéo » si la place le permet, sinon « Tracéo ». Il signale un relevé ancien
   (plus de 150 s, ce qui est normal entre 2 h et 5 h). Le format Pastille manque de place : il n'indique
   que l'heure, et la mention reste dans sa description pour les lecteurs d'écran.
-- **Couleur du widget** : couleur de la ligne par défaut, ou au choix automatique (couleur de la ligne
-  pour les formats à grand chiffre, fond sombre pour les autres), sombre ou clair. La liste reste en
-  sombre ou en clair et démarre en sombre. Un widget existant garde sa couleur. Le widget À proximité suit
-  le thème clair ou sombre du système.
+- **Couleur du widget** : couleur de la ligne par défaut, ou au choix automatique (sombre ou clair selon
+  le thème du système), sombre ou clair, y compris en mode automatique, où la couleur suit la ligne
+  affichée. La liste reste en sombre ou en clair et démarre en sombre. Le widget À proximité suit le thème
+  clair ou sombre du système.
 - **Widget À proximité** : toujours automatique, il n'y a rien à configurer en dehors de la permission. Il
   garde le classement du mode automatique et les mêmes gestes : un toucher relit la position, deux touchers
   en moins de 1,5 seconde ouvrent la liste complète. Deux lignes tiennent en 4×2, trois en 4×3. Une ligne
@@ -78,8 +78,8 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
   non réveillante : aucune requête quand le téléphone est en veille). Sans clé, le choix de 1 min n'est
   pas proposé, car le cache de Tracéo ne change pas plus vite ; il revient avec une clé. Les temps
   d'attente sont recalculés chaque minute sans requête réseau.
-- Plusieurs widgets possibles (un arrêt/sens différent par widget), modifiables via l'écran principal
-  ou l'option « Reconfigurer » du lanceur (Android 12+).
+- Plusieurs widgets possibles (un arrêt/sens différent par widget), affichés sur l'accueil de
+  l'application et modifiables depuis celui-ci ou par l'option « Reconfigurer » du lanceur (Android 12+).
 
 ## Installation
 
@@ -96,7 +96,7 @@ câble et le funiculaire, et permet une actualisation chaque minute.
 
 1. Créer un compte gratuit sur <https://prim.iledefrance-mobilites.fr>.
 2. Dans votre espace, générer un **jeton d'authentification** (clé API) et le copier.
-3. Le coller dans l'application (« Clé API PRIM » → Enregistrer → Tester).
+3. Le coller dans l'application (Réglages → « Ajouter une clé API PRIM » → Enregistrer → Tester).
 
 Chaque actualisation d'un widget consomme **une requête par point d'arrêt** retenu (en général une
 seule une fois le sens choisi). Adaptez la fréquence d'actualisation à votre quota PRIM.
@@ -108,8 +108,9 @@ ajoutée et garde son sens.
 ## Utilisation
 
 1. Ajouter le format de son choix sur l'écran d'accueil : appui long → Widgets → Temps réel IDF, ou
-   bouton « Ajouter un widget » de l'application.
-2. Choisir le mode, la ligne, l'arrêt puis le ou les sens, et enregistrer.
+   bouton « Ajouter un widget » de l'application. Dans les deux cas, la configuration s'ouvre ensuite.
+2. Choisir le mode, la ligne, l'arrêt, le ou les sens et la couleur, puis enregistrer. En mode
+   automatique : choisir la ligne proche puis la couleur, tous les sens étant affichés.
 
 ## Confidentialité
 
@@ -161,7 +162,7 @@ ajoutée et garde son sens.
 app/src/main/java/fr/trprim/siri/
 ├── data/     modèles, clients Tracéo et PRIM (SIRI), choix de la source, parseur SIRI Lite, référentiel IDFM, sens, préférences, index des arrêts, règles du mode automatique, position
 ├── widget/   AppWidgetProvider, choix du format et des couleurs, dessin, actualisation et planification, mode automatique et son service
-└── ui/       écran principal (clé, fréquence, widgets), assistant de configuration et feuille de choix des lignes proches
+└── ui/       accueil, galerie des formats, réglages, clé API, sources et licences, assistant de configuration et feuille de choix des lignes proches
 ```
 
 ## Compiler
@@ -228,11 +229,22 @@ interroge l'API PRIM et met ses réponses en cache.
   présentement mises à disposition aux conditions de
   l'[Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/1-0/).
 - **Mode automatique, avec ou sans clé**, arrêts proches : contient des informations
-  d'[Arrêts et lignes associées](https://data.iledefrance-mobilites.fr/explore/dataset/arrets-lignes/),
-  d'[Arrêts](https://data.iledefrance-mobilites.fr/explore/dataset/arrets/), de
-  [Zones d'arrêts](https://data.iledefrance-mobilites.fr/explore/dataset/zones-d-arrets/) et du
-  [Référentiel des lignes](https://data.iledefrance-mobilites.fr/explore/dataset/referentiel-des-lignes/),
-  aux mêmes conditions. L'index compilé reste sur le téléphone : il n'est pas redistribué.
+  d'[Arrêts et lignes associées](https://data.iledefrance-mobilites.fr/explore/dataset/arrets-lignes/)
+  et du [Référentiel des lignes](https://data.iledefrance-mobilites.fr/explore/dataset/referentiel-des-lignes/),
+  présentement mises à disposition aux conditions de
+  l'[Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/1-0/).
+- **Mode automatique, avec ou sans clé**, regroupement des arrêts proches : Île-de-France Mobilités,
+  [Arrêts](https://data.iledefrance-mobilites.fr/explore/dataset/arrets/) et
+  [Zones d'arrêts](https://data.iledefrance-mobilites.fr/explore/dataset/zones-d-arrets/), données originales
+  téléchargées sur data.iledefrance-mobilites.fr, sous
+  [Licence Ouverte 2.0](https://www.etalab.gouv.fr/licence-ouverte-open-licence). L'écran « Sources et licences »
+  donne la date de dernière mise à jour de l'index sur le téléphone.
+
+Le jeu Arrêts et lignes associées indique les attributions suivantes : INSEE, IGN, NaturalEarth,
+DGCL - BANATIC, MEFR, MAA. L'index compilé reste sur le téléphone : il n'est pas redistribué.
+
+Une mention courte, avec ses liens, figure sur l'accueil, à chaque étape de la configuration et dans la feuille
+des lignes proches. L'écran « Sources et licences » donne le détail par jeu de données.
 
 Cette application n'est pas affiliée à Île-de-France Mobilités. Sans clé, [Tracéo](https://gotraceo.fr) lui
 fournit les données PRIM.
