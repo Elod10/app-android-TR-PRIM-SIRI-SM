@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.util.Log
@@ -37,6 +38,7 @@ object WidgetUpdater {
 
     const val ACTION_REFRESH = "fr.trprim.siri.action.REFRESH"
     const val ACTION_TICK = "fr.trprim.siri.action.TICK"
+    const val ACTION_CHOICE_END = "fr.trprim.siri.action.CHOICE_END"
 
     private const val TAG = "TRWidget"
     private const val TICK_INTERVAL_MS = 60_000L
@@ -65,6 +67,7 @@ object WidgetUpdater {
                     options = manager.getAppWidgetOptions(widgetId),
                     fixedFormat = WidgetProviders.formatOf(manager.getAppWidgetInfo(widgetId)?.provider?.className),
                     renderScale = quality,
+                    auto = prefs.auto(widgetId),
                 )
                 manager.updateAppWidget(widgetId, views)
                 return
@@ -127,6 +130,32 @@ object WidgetUpdater {
                     render(context, id)
                 }
             }
+        }
+    }
+
+    /** Modifie la configuration d'un widget sans croiser une actualisation en cours. */
+    suspend fun <T> exclusive(block: () -> T): T = mutex.withLock { block() }
+
+    /** Redessine le widget à la fin de la fenêtre de choix : son toucher relit alors la position. */
+    fun scheduleChoiceEnd(context: Context, widgetId: Int, at: Long) {
+        val alarmManager = context.getSystemService(AlarmManager::class.java) ?: return
+        val intent = Intent(context, DeparturesWidgetProvider::class.java)
+            .setAction(ACTION_CHOICE_END)
+            .setData(Uri.parse("trprim://widget/choice-end/$widgetId"))
+            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+        val pending = PendingIntent.getBroadcast(
+            context, widgetId, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        try {
+            if (canUseExactAlarms(alarmManager)) {
+                alarmManager.setExact(AlarmManager.RTC, at, pending)
+            } else {
+                alarmManager.set(AlarmManager.RTC, at, pending)
+            }
+        } catch (e: SecurityException) {
+            Log.w(TAG, "Alarme exacte refusée", e)
+            alarmManager.set(AlarmManager.RTC, at, pending)
         }
     }
 

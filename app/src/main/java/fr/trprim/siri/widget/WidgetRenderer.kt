@@ -9,9 +9,14 @@ import android.net.Uri
 import android.os.Bundle
 import android.widget.RemoteViews
 import fr.trprim.siri.R
+import fr.trprim.siri.data.AutoHint
+import fr.trprim.siri.data.AutoMessage
+import fr.trprim.siri.data.AutoState
+import fr.trprim.siri.data.PositionReader
 import fr.trprim.siri.data.WidgetConfig
 import fr.trprim.siri.data.WidgetState
 import fr.trprim.siri.ui.ConfigureActivity
+import fr.trprim.siri.ui.NearbyChoiceActivity
 
 /** Construit les RemoteViews d'un widget à partir de sa configuration et de son dernier état. */
 object WidgetRenderer {
@@ -34,18 +39,58 @@ object WidgetRenderer {
         now: Long = System.currentTimeMillis(),
         fixedFormat: WidgetFormat? = null,
         renderScale: Float = 1f,
+        auto: AutoState? = null,
     ): RemoteViews {
         val (width, height) = widgetSize(context, options)
-        val model = WidgetModels.build(config, state, hasApiKey, refreshing, width, height, now, fixedFormat)
+        val isAuto = config?.auto == true
+        // Sans position exacte, le toucher mène à la configuration, qui la redemande.
+        val canLocate = isAuto && PositionReader(context).hasPreciseAccess
+        val hint = when {
+            !isAuto -> null
+            !canLocate -> AutoHint(AutoMessage.NEEDS_ACCESS.label, AutoMessage.NEEDS_ACCESS.short)
+            else -> auto?.hint(now)
+        }
+        val model = WidgetModels.build(
+            config, state, hasApiKey, refreshing, width, height, now, fixedFormat,
+            autoHint = hint,
+            autoDistanceM = auto?.distanceM.takeIf { isAuto },
+        )
         val density = context.resources.displayMetrics.density * renderScale
 
         val views = RemoteViews(context.packageName, R.layout.widget_canvas)
         views.setImageViewBitmap(R.id.widget_image, WidgetPainter.paint(context, model, width, height, density))
         views.setContentDescription(R.id.widget_image, describe(context, model))
         val needsConfiguration = model.notice?.kind == NoticeKind.NOT_CONFIGURED || model.notice?.kind == NoticeKind.RECONFIGURE
-        val click = if (needsConfiguration) configurePendingIntent(context, widgetId) else refreshPendingIntent(context, widgetId)
+        val click = when {
+            needsConfiguration || (isAuto && !canLocate) -> configurePendingIntent(context, widgetId)
+            isAuto && auto?.isChoiceOpen(now) == true -> choicePendingIntent(context, widgetId)
+            isAuto -> locatePendingIntent(context, widgetId)
+            else -> refreshPendingIntent(context, widgetId)
+        }
         views.setOnClickPendingIntent(R.id.widget_root, click)
         return views
+    }
+
+    /** Le service doit partir directement du toucher : c'est ce qui lui donne accès à la position. */
+    private fun locatePendingIntent(context: Context, widgetId: Int): PendingIntent {
+        val intent = Intent(context, AutoLocateService::class.java)
+            .setData(Uri.parse("trprim://widget/locate/$widgetId"))
+            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+        return PendingIntent.getForegroundService(
+            context, widgetId, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    private fun choicePendingIntent(context: Context, widgetId: Int): PendingIntent {
+        val intent = Intent(context, NearbyChoiceActivity::class.java)
+            .setData(Uri.parse("trprim://widget/choice/$widgetId"))
+            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        return PendingIntent.getActivity(
+            context, widgetId, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
     }
 
     /** Taille actuelle du widget en dp, selon l'orientation de l'écran. */

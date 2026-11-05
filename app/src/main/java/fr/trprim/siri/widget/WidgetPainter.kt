@@ -154,6 +154,7 @@ private class Scene(
         val next = WidgetContent.nextPassage(model.passages, first)
         when {
             model.refreshing -> textRight("…", tagRight, tagBase, Face.MEDIUM, 12.5f, p.text2)
+            model.autoHintShort != null -> textRight(model.autoHintShort, tagRight, tagBase, Face.SEMI, 12.5f, p.text)
             model.stale -> Unit
             model.oldSnapshot -> snapshotNote(tagRight, tagBase, 12.5f, tagRoom)
             first.isDelayed -> {
@@ -213,6 +214,7 @@ private class Scene(
         val next = WidgetContent.nextPassage(model.passages, first)
         val rightWidth = when {
             model.refreshing -> textRight("…", right, base, Face.MEDIUM, 13.5f, p.text2)
+            model.autoHint != null -> textRight(model.autoHint, right, base, Face.SEMI, 13.5f, p.text)
             model.stale -> {
                 val center = base - 16f
                 val top = textRight(staleMessage.substringBefore(' '), right, center - 2f, Face.SEMI, 13f, p.late)
@@ -367,8 +369,8 @@ private class Scene(
         val stop = fit(name, Face.SEMI, 14f, 62f)
         val stopBase = baseline(stackTop + 31f, 18f, 14f)
         text(stop, center - measure(stop, Face.SEMI, 14f) / 2f, stopBase, Face.SEMI, 14f, p.text)
-        val timeColor = if (timeAlert) p.late else p.text3
-        val timeFace = if (timeAlert) Face.SEMI else Face.REGULAR
+        val timeColor = timeColor()
+        val timeFace = if (timeAlert || model.autoHint != null) Face.SEMI else Face.REGULAR
         val timeBase = baseline(stackTop + 50f, 15f, 12.5f)
         val time = sourcedTime().takeIf { measure(it, timeFace, 12.5f) <= 74f } ?: model.timeLabel
         text(time, center - measure(time, timeFace, 12.5f) / 2f, timeBase, timeFace, 12.5f, timeColor)
@@ -752,6 +754,13 @@ private class Scene(
         text(stop, textX, cy + 0.35f * nameSize, Face.SEMI, nameSize, p.text)
     }
 
+    /** Le message du mode automatique se lit mieux que l'heure, qu'il remplace pendant 30 secondes. */
+    private fun timeColor(): Int = when {
+        model.autoHint != null -> p.text
+        timeAlert -> p.late
+        else -> p.text3
+    }
+
     /** L'heure, précédée de la source s'il faut la citer : « Tracéo 22:34 ». */
     private fun sourcedTime(source: String? = model.sourceLabel): String =
         listOfNotNull(source, model.timeLabel.takeIf { it.isNotEmpty() }).joinToString(" ")
@@ -767,8 +776,8 @@ private class Scene(
     private fun timeLabel(right: Float, base: Float, size: Float, stacked: Boolean = false, room: Float = 0f): Float {
         val source = model.sourceLabel
         if (source == null && model.timeLabel.isEmpty()) return 0f
-        val face = if (timeAlert) Face.SEMI else Face.REGULAR
-        val color = if (timeAlert) p.late else p.text3
+        val face = if (timeAlert || model.autoHint != null) Face.SEMI else Face.REGULAR
+        val color = timeColor()
         val showsWarning = model.oldSnapshot && !model.stale
         val gap = 2f
         val warningWidth = if (showsWarning) gap + size else 0f

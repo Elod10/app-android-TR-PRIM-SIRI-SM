@@ -54,5 +54,34 @@ object Http {
         }
     }
 
+    /** Lit une réponse volumineuse au fil de l'eau, sans la charger en mémoire. */
+    @Throws(IOException::class)
+    fun <T> stream(
+        url: String,
+        connectTimeoutMs: Int = 10_000,
+        readTimeoutMs: Int = 60_000,
+        block: (InputStream) -> T,
+    ): T {
+        val conn = URL(url).openConnection() as HttpURLConnection
+        try {
+            conn.requestMethod = "GET"
+            conn.connectTimeout = connectTimeoutMs
+            conn.readTimeout = readTimeoutMs
+            conn.instanceFollowRedirects = true
+            conn.setRequestProperty("Accept-Encoding", "gzip")
+            conn.setRequestProperty("User-Agent", USER_AGENT)
+            val code = conn.responseCode
+            if (code !in 200..299) throw IOException("HTTP $code")
+            val stream = if ("gzip".equals(conn.contentEncoding, ignoreCase = true)) {
+                GZIPInputStream(conn.inputStream)
+            } else {
+                conn.inputStream
+            }
+            return stream.use(block)
+        } finally {
+            conn.disconnect()
+        }
+    }
+
     fun encode(s: String): String = URLEncoder.encode(s, "UTF-8")
 }

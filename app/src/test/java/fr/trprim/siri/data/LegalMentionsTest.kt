@@ -51,6 +51,17 @@ class LegalMentionsTest {
     }
 
     @Test
+    fun bothMentionsNameTheDatasetsOfTheStopIndex() {
+        for (name in listOf("main_about_traceo", "main_about_prim")) {
+            val about = string(name)
+            assertLinksTo(about, "https://data.iledefrance-mobilites.fr/explore/dataset/arrets-lignes/")
+            assertLinksTo(about, "https://data.iledefrance-mobilites.fr/explore/dataset/arrets/")
+            assertLinksTo(about, "https://data.iledefrance-mobilites.fr/explore/dataset/zones-d-arrets/")
+            assertLinksTo(about, "https://data.iledefrance-mobilites.fr/explore/dataset/referentiel-des-lignes/")
+        }
+    }
+
+    @Test
     fun sourceLinesShowThatTheDataAreAlwaysFromPrim() {
         assertTrue(string("main_source_traceo").contains("PRIM via le cache de Tracéo"))
         assertTrue(string("main_source_prim").contains("PRIM en direct"))

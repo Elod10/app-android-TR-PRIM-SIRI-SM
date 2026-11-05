@@ -1,5 +1,6 @@
 package fr.trprim.siri.widget
 
+import fr.trprim.siri.data.AutoHint
 import fr.trprim.siri.data.Departure
 import fr.trprim.siri.data.Line
 import fr.trprim.siri.data.Stop
@@ -540,5 +541,79 @@ class WidgetContentTest {
             "Ligne 1, Bastille. Vers Château de Vincennes : 1 minute, puis 5 minutes. Vers La Défense : 2 minutes.",
             WidgetContent.describe(result),
         )
+    }
+
+    // --- Mode automatique ------------------------------------------------------------------------
+
+    private fun autoModel(
+        hint: AutoHint? = null,
+        distance: Int? = null,
+        refreshing: Boolean = false,
+        fixedFormat: WidgetFormat? = WidgetFormat.DEUX_SENS_LARGE,
+        snapshot: Boolean = false,
+    ): WidgetModel {
+        val base = state(dep("La Défense", 2))
+        return WidgetModels.build(
+            config(metro, allDirections),
+            if (snapshot) base.copy(dataAt = now - 30_000L, fresh = false) else base,
+            hasApiKey = true,
+            refreshing = refreshing,
+            widthDp = 348f,
+            heightDp = 192f,
+            now = now,
+            fixedFormat = fixedFormat,
+            autoHint = hint,
+            autoDistanceM = distance,
+        )
+    }
+
+    @Test
+    fun theHintTakesThePlaceOfTheTimeAndTheSource() {
+        val result = autoModel(AutoHint("+3 lignes", "+3"), snapshot = true)
+        assertEquals("+3 lignes", result.timeLabel)
+        assertEquals("+3 lignes", result.autoHint)
+        assertEquals("+3", result.autoHintShort)
+        assertNull(result.sourceLabel)
+        assertNull(result.sourceDetail)
+        assertFalse(result.oldSnapshot)
+    }
+
+    @Test
+    fun theTimeAndTheSourceComeBackWithoutHint() {
+        val result = autoModel(snapshot = true)
+        assertNull(result.autoHint)
+        assertEquals("Tracéo", result.sourceLabel)
+        assertTrue(result.oldSnapshot)
+    }
+
+    @Test
+    fun aRefreshHidesTheHint() {
+        val result = autoModel(AutoHint("+3 lignes", "+3"), refreshing = true)
+        assertEquals("…", result.timeLabel)
+        assertNull(result.autoHint)
+    }
+
+    @Test
+    fun theDistanceFollowsTheStopOnWideHeadersOnly() {
+        assertEquals("Bastille · 33 m", autoModel(distance = 33).stopName)
+        assertEquals("Bastille · 33 m", autoModel(distance = 33, fixedFormat = WidgetFormat.LISTE).stopName)
+        assertEquals("Bastille", autoModel(distance = 33, fixedFormat = WidgetFormat.DEUX_SENS).stopName)
+        assertEquals("Bastille", autoModel(distance = 33, fixedFormat = WidgetFormat.PASTILLE).stopName)
+        assertEquals("Bastille", autoModel().stopName)
+    }
+
+    @Test
+    fun screenReadersHearTheHint() {
+        assertTrue(WidgetContent.describe(autoModel(AutoHint("+3 lignes", "+3"))).endsWith("+3 lignes."))
+    }
+
+    @Test
+    fun everyFormatTakesAnAutomaticWidget() {
+        WidgetFormat.entries.forEach { format ->
+            val result = autoModel(AutoHint("+3 lignes", "+3"), distance = 33, fixedFormat = format)
+            assertEquals(format, result.format)
+            assertNull(result.notice)
+            assertEquals("La Défense", result.passages.single().destination)
+        }
     }
 }

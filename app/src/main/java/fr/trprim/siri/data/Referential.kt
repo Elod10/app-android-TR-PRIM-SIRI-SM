@@ -31,6 +31,10 @@ object Referential {
     fun exportUrl(dataset: String, where: String): String =
         "$BASE_URL/$dataset/exports/json?where=${Http.encode(where)}&lang=fr&timezone=Europe%2FParis"
 
+    /** Export CSV de quelques colonnes, pour les jeux trop gros à charger en mémoire. */
+    fun csvUrl(dataset: String, select: String): String =
+        "$BASE_URL/$dataset/exports/csv?select=${Http.encode(select)}&delimiter=${Http.encode(";")}"
+
     fun recordsUrl(dataset: String, where: String, offset: Int): String =
         "$BASE_URL/$dataset/records?where=${Http.encode(where)}&limit=$PAGE_SIZE&offset=$offset&lang=fr&timezone=Europe%2FParis"
 

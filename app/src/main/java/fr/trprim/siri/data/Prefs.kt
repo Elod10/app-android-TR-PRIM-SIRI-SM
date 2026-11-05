@@ -40,11 +40,44 @@ class Prefs(context: Context) {
     }
 
     fun saveConfig(config: WidgetConfig) {
-        widgets.edit()
+        val editor = widgets.edit()
             .putString(configKey(config.widgetId), config.toJson().toString())
             .remove(stateKey(config.widgetId))
-            .apply()
+        if (!config.auto) editor.remove(autoKey(config.widgetId))
+        editor.apply()
     }
+
+    /** Position et fenêtre de choix du mode automatique, pour ce widget. */
+    fun auto(widgetId: Int): AutoState {
+        val raw = widgets.getString(autoKey(widgetId), null) ?: return AutoState()
+        return try {
+            AutoState.fromJson(JSONObject(raw))
+        } catch (e: Exception) {
+            AutoState()
+        }
+    }
+
+    fun saveAuto(widgetId: Int, state: AutoState) {
+        widgets.edit().putString(autoKey(widgetId), state.toJson().toString()).apply()
+    }
+
+    /** Lignes favorites du mode automatique. */
+    val favoriteLines: Set<String>
+        get() = settings.getStringSet(KEY_FAVORITE_LINES, null)?.toSet().orEmpty()
+
+    /** Ajoute ou retire une ligne des favoris. Renvoie vrai si elle est maintenant favorite. */
+    fun toggleFavoriteLine(lineId: String): Boolean {
+        val current = favoriteLines
+        val favorite = lineId !in current
+        val next = if (favorite) current + lineId else current - lineId
+        settings.edit().putStringSet(KEY_FAVORITE_LINES, next).apply()
+        return favorite
+    }
+
+    /** Ligne choisie à chaque endroit par l'usager. Ces positions restent sur le téléphone. */
+    var placeChoices: PlaceChoices
+        get() = PlaceChoices.fromJson(settings.getString(KEY_PLACE_CHOICES, null))
+        set(value) = settings.edit().putString(KEY_PLACE_CHOICES, value.toJson()).apply()
 
     fun state(widgetId: Int): WidgetState? {
         val raw = widgets.getString(stateKey(widgetId), null) ?: return null
@@ -68,7 +101,7 @@ class Prefs(context: Context) {
     }
 
     fun deleteWidget(widgetId: Int) {
-        widgets.edit().remove(configKey(widgetId)).remove(stateKey(widgetId)).apply()
+        widgets.edit().remove(configKey(widgetId)).remove(stateKey(widgetId)).remove(autoKey(widgetId)).apply()
     }
 
     /** Supprime les données des widgets qui n'existent plus. */
@@ -84,10 +117,13 @@ class Prefs(context: Context) {
     companion object {
         private const val KEY_API = "prim_api_key"
         private const val KEY_REFRESH = "refresh_minutes"
+        private const val KEY_FAVORITE_LINES = "favorite_lines"
+        private const val KEY_PLACE_CHOICES = "place_choices"
         const val DEFAULT_REFRESH_MINUTES = 2
         val REFRESH_CHOICES = listOf(0, 1, 2, 5, 10, 15, 30)
 
         private fun configKey(id: Int) = "config_$id"
         private fun stateKey(id: Int) = "state_$id"
+        private fun autoKey(id: Int) = "auto_$id"
     }
 }
