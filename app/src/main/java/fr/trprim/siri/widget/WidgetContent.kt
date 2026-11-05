@@ -167,6 +167,8 @@ data class ProximityRow(
     val place: String,
     /** Un ou deux sens ; vide si la ligne, favorite ou choisie ici, n'a aucun passage. */
     val directions: List<ProximityDirection>,
+    /** La ligne, pour la nommer en toutes lettres dans la notification. */
+    val line: Line? = null,
 )
 
 /** Rangées du format À proximité selon la taille du widget. */
@@ -565,6 +567,7 @@ object WidgetModels {
             badgeFg = foreground,
             place = "${entry.nearby.stopName} · ${formatDistance(entry.nearby.distanceM)}",
             directions = WidgetContent.proximityDirections(passages, line.id, entry.nearby.stopName),
+            line = line,
         )
     }
 

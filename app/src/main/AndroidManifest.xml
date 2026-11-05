@@ -9,11 +9,16 @@
         android:name="android.permission.SCHEDULE_EXACT_ALARM"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
-    <!-- Mode automatique : position lue seulement quand on touche le widget, jamais en arrière-plan. -->
+    <!-- Mode automatique : par défaut, position lue seulement quand on touche le widget. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Facultative (« Toujours autoriser ») : un widget peut relire la position à chaque actualisation,
+         écran allumé, si on l'active pour lui. -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- Notification facultative d'un widget, lisible sur l'écran de verrouillage. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="false"
@@ -47,6 +52,11 @@
             android:exported="false"
             android:label="@string/main_key_title"
             android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".ui.LockScreenActivity"
+            android:exported="false"
+            android:label="@string/lock_title" />
 
         <activity
             android:name=".ui.SourcesActivity"

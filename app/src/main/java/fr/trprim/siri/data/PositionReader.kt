@@ -33,6 +33,16 @@ class PositionReader(context: Context) {
     val hasPreciseAccess: Boolean
         get() = app.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
+    /**
+     * Vrai si la position peut être lue sans toucher le widget : permission « Toujours autoriser »,
+     * facultative. Avant Android 10, la permission de position suffit.
+     */
+    val hasBackgroundAccess: Boolean
+        get() = hasPreciseAccess && (
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+                app.checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
+            )
+
     /** Position actuelle, ou null si elle reste introuvable. */
     @SuppressLint("MissingPermission")
     suspend fun read(timeoutMs: Long = TIMEOUT_MS): PositionFix? {

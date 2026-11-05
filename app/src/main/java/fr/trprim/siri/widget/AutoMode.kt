@@ -138,8 +138,37 @@ object AutoMode {
 
     private fun tookOver(widgetId: Int, tappedAt: Long): Boolean = (choosingSince[widgetId] ?: 0L) >= tappedAt
 
-    /** Toucher du widget : relit la position et met à jour le widget. */
-    suspend fun onTap(context: Context, widgetId: Int, tappedAt: Long) {
+    /**
+     * Widgets qui relisent la position sans qu'on les touche : option activée, permission « Toujours
+     * autoriser » accordée, plage horaire en cours et intervalle d'actualisation écoulé. Comme toute
+     * actualisation automatique, seulement écran allumé.
+     */
+    fun followedNow(context: Context, ids: IntArray, now: Long): List<Int> {
+        if (!PositionReader(context).hasBackgroundAccess) return emptyList()
+        val prefs = Prefs(context)
+        return ids.filter { id ->
+            prefs.followsPosition(id) && prefs.config(id)?.auto == true && prefs.inTimeWindow(id) &&
+                !isLocating(id) && WidgetUpdater.isDue(context, id, now)
+        }
+    }
+
+    /** Relit la position d'un widget suivi, comme un toucher, mais sans message à l'écran. */
+    suspend fun follow(context: Context, widgetId: Int) {
+        beginLocating(widgetId)
+        try {
+            onTap(context, widgetId, System.currentTimeMillis(), quiet = true)
+        } catch (e: RuntimeException) {
+            Log.w(TAG, "Échec du suivi de la position", e)
+        } finally {
+            endLocating(widgetId)
+        }
+    }
+
+    /**
+     * Toucher du widget : relit la position et met à jour le widget.
+     * @param quiet vrai pour un suivi sans toucher : le widget n'affiche ni « +3 lignes » ni message
+     */
+    suspend fun onTap(context: Context, widgetId: Int, tappedAt: Long, quiet: Boolean = false) {
         val app = context.applicationContext
         val prefs = Prefs(app)
         val config = prefs.config(widgetId) ?: return
@@ -217,9 +246,9 @@ object AutoMode {
                 anchor = anchor,
                 last = point,
                 distanceM = lines.firstOrNull { it.nearby.line.id == shownLineId }?.nearby?.distanceM ?: latest.distanceM,
-                hintUntil = now + AutoState.HINT_MS,
-                others = others,
-                message = message,
+                hintUntil = if (quiet) latest.hintUntil else now + AutoState.HINT_MS,
+                others = if (quiet) latest.others else others,
+                message = if (quiet) latest.message else message,
             ),
         )
         WidgetUpdater.render(app, widgetId)

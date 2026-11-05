@@ -1,0 +1,97 @@
+package fr.trprim.siri.widget
+
+import fr.trprim.siri.ui.UiText
+import kotlin.math.max
+
+/** Texte de la notification d'un widget, qui reste affichée sur l'écran de verrouillage. */
+data class NotificationText(
+    val title: String,
+    /** Ligne affichée quand la notification est repliée. */
+    val text: String,
+    /** Une ligne par sens (ou par ligne de transport, pour À proximité), quand elle est dépliée. */
+    val lines: List<String>,
+    /** Source et heure des passages, dans l'en-tête de la notification. */
+    val subText: String?,
+)
+
+/** Met en mots le contenu d'un widget, pour sa notification. */
+object NotificationContent {
+
+    /** Longueur au-delà de laquelle un nom de sens est raccourci dans la notification repliée. */
+    private const val COMPACT_NAME_LENGTH = 16
+
+    /**
+     * @param lineTitle nom complet de la ligne, « Métro 13 » ou « RER B »
+     * @param noticeText texte affiché à la place des passages, ou null si le widget n'a rien à montrer
+     * @return null quand il n'y a pas de notification à afficher (widget non configuré)
+     */
+    fun build(model: WidgetModel, lineTitle: String?, noticeText: (Notice) -> String?): NotificationText? {
+        if (model.notice?.kind == NoticeKind.NOT_CONFIGURED) return null
+        val proximity = model.format == WidgetFormat.PROXIMITE
+        val title = if (proximity) model.stopName else titleOf(model, lineTitle)
+        val lines = when {
+            model.notice != null -> listOfNotNull(noticeText(model.notice))
+            proximity -> model.proximity.map(::proximityLine)
+            else -> model.groups.map(::directionLine)
+        }
+        if (lines.isEmpty()) return null
+        val text = when {
+            model.notice != null || proximity || model.groups.size < 2 -> lines.first()
+            else -> model.groups.joinToString(" · ") { group ->
+                "${compact(group.label)} ${wait(group.first)}"
+            }
+        }
+        return NotificationText(title, text, lines, subTextOf(model))
+    }
+
+    /** « Métro 13 · Brochant » : la pastille seule ne suffit pas toujours, l'icône pouvant être masquée. */
+    private fun titleOf(model: WidgetModel, lineTitle: String?): String {
+        val line = lineTitle ?: model.line?.label
+        return listOfNotNull(line, model.stopName.takeIf { it.isNotEmpty() }).joinToString(" · ")
+    }
+
+    /** « Vers Châtillon – Montrouge : 3 min (voie 2), puis 9 min » */
+    fun directionLine(group: DirectionGroup): String {
+        val first = group.first
+        val details = listOfNotNull(
+            first.platform?.trim()?.takeIf { it.isNotEmpty() && first.kind != WaitKind.CANCELLED }
+                ?.let { "${first.platformLabel.lowercase()} $it" },
+            if (first.isDelayed) "retard ${first.delayMinutes} min" else null,
+        )
+        val detail = if (details.isEmpty()) "" else " (${details.joinToString(", ")})"
+        val then = group.next?.let { ", puis ${wait(it)}" }.orEmpty()
+        return "Vers ${group.label} : ${wait(first)}$detail$then"
+    }
+
+    /** « Métro 13, Brochant · 120 m : Châtillon 3 min · Saint-Denis 5 min » */
+    fun proximityLine(row: ProximityRow): String {
+        val name = row.line?.let(UiText::lineTitle) ?: row.badge.label
+        val directions = row.directions.joinToString(" · ") { "${compact(it.label)} ${wait(it.first)}" }
+            .ifEmpty { "aucun passage" }
+        return "$name, ${row.place} : $directions"
+    }
+
+    /** Attente telle qu'on la lit dans une phrase : « 3 min », « 17:05 », « à quai »… */
+    fun wait(passage: Passage): String = when (passage.kind) {
+        WaitKind.MINUTES -> "${max(0, passage.minutes)} min"
+        WaitKind.CLOCK -> passage.clock
+        WaitKind.IMMINENT -> "imminent"
+        WaitKind.AT_STOP -> passage.atStopLabel.lowercase()
+        WaitKind.CANCELLED -> "supprimé"
+    }
+
+    private fun compact(name: String): String =
+        WidgetContent.compactName(name) { it.length <= COMPACT_NAME_LENGTH }
+
+    private fun subTextOf(model: WidgetModel): String? {
+        val time = model.timeLabel.takeIf { it.isNotEmpty() && !model.refreshing } ?: return null
+        return when {
+            model.stale -> "Actualisation impossible, données de $time"
+            model.sourceDetail != null -> {
+                val old = if (model.oldSnapshot) ", ancien" else ""
+                "${model.sourceDetail} · relevé de $time$old"
+            }
+            else -> "Actualisé à $time"
+        }
+    }
+}

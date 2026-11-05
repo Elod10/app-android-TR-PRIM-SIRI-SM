@@ -48,8 +48,14 @@ object WidgetUpdater {
         return WidgetProviders.components(context).flatMap { manager.getAppWidgetIds(it).asList() }.toIntArray()
     }
 
-    /** Redessine un widget à partir de l'état en cache (sans réseau). */
+    /** Redessine un widget, et sa notification, à partir de l'état en cache (sans réseau). */
     fun render(context: Context, widgetId: Int, refreshing: Boolean = false) {
+        draw(context, widgetId, refreshing)
+        // Pendant une actualisation, la notification garde les passages précédents.
+        if (!refreshing) PassageNotifications.update(context, widgetId)
+    }
+
+    private fun draw(context: Context, widgetId: Int, refreshing: Boolean) {
         val prefs = Prefs(context)
         val manager = AppWidgetManager.getInstance(context)
         for (quality in RENDER_QUALITIES) {
@@ -137,6 +143,19 @@ object WidgetUpdater {
                 }
             }
         }
+    }
+
+    /** Vrai si l'actualisation automatique de ce widget est due : écran allumé et intervalle écoulé. */
+    fun isDue(context: Context, widgetId: Int, now: Long): Boolean {
+        if (!isInteractive(context)) return false
+        val prefs = Prefs(context)
+        val refreshMinutes = DataSources.refreshMinutes(prefs.refreshMinutes, prefs.hasApiKey)
+        val attemptedAt = if (WidgetProviders.isProximity(context, widgetId)) {
+            prefs.proximity(widgetId)?.attemptedAt
+        } else {
+            prefs.state(widgetId)?.attemptedAt
+        }
+        return needsRefresh(attemptedAt, refreshMinutes, now)
     }
 
     /** Modifie la configuration d'un widget sans croiser une actualisation en cours. */

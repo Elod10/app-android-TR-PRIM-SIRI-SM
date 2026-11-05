@@ -172,6 +172,9 @@ class ConfigureActivity : Activity() {
     private lateinit var bottomBar: View
     private lateinit var colorSection: View
     private lateinit var swatches: LinearLayout
+    private lateinit var notifySection: View
+    private lateinit var notifyIcon: ImageView
+    private lateinit var notifySummary: TextView
     private lateinit var save: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -218,6 +221,8 @@ class ConfigureActivity : Activity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
             override fun afterTextChanged(s: Editable?) = applySearch(s?.toString().orEmpty())
         })
+        // Notification, suivi de la position et plage horaire s'enregistrent sur leur propre écran.
+        notifySection.setOnClickListener { startActivity(LockScreenActivity.intent(this, widgetId)) }
         retry.setOnClickListener { goTo(step, forceRefresh = true) }
         statusSettings.setOnClickListener {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
@@ -266,6 +271,9 @@ class ConfigureActivity : Activity() {
         bottomBar = findViewById(R.id.bottom_bar)
         colorSection = findViewById(R.id.color_section)
         swatches = findViewById(R.id.swatches)
+        notifySection = findViewById(R.id.notify_section)
+        notifyIcon = findViewById(R.id.notify_icon)
+        notifySummary = findViewById(R.id.notify_summary)
         save = findViewById(R.id.save)
         findViewById<TextView>(R.id.data_mention).movementMethod = LinkMovementMethod.getInstance()
 
@@ -282,6 +290,14 @@ class ConfigureActivity : Activity() {
         super.onRestart()
         // Une clé ajoutée entre-temps propose d'autres modes.
         if (step == Step.MODE) showModes()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Au retour de l'écran de verrouillage, son résumé change.
+        val active = LockScreenActivity.isActive(this, prefs, widgetId)
+        notifyIcon.setImageResource(if (active) R.drawable.ic_notification_on else R.drawable.ic_notification_off)
+        notifySummary.text = LockScreenActivity.summary(this, prefs, widgetId)
     }
 
     override fun onDestroy() {
@@ -367,6 +383,7 @@ class ConfigureActivity : Activity() {
 
         bottomBar.visibility = if (step == Step.DIRECTION || step == Step.AUTO_COLOR) View.VISIBLE else View.GONE
         colorSection.visibility = if (step == Step.AUTO) View.GONE else View.VISIBLE
+        notifySection.visibility = colorSection.visibility
         save.setText(if (step == Step.AUTO) R.string.continue_label else R.string.save_widget)
         if (step == Step.DIRECTION || step == Step.AUTO_COLOR) renderSwatches()
         hideKeyboard()
@@ -883,6 +900,7 @@ class ConfigureActivity : Activity() {
     }
 
     private fun finishSaved() {
+        // Le rendu publie aussi la notification, si elle a été activée avant l'enregistrement.
         WidgetUpdater.render(this, widgetId)
         WidgetUpdater.requestRefresh(this, widgetId)
         WidgetUpdater.scheduleTick(this)

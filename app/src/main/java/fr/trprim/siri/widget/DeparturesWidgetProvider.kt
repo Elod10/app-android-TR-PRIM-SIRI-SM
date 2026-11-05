@@ -28,7 +28,16 @@ open class DeparturesWidgetProvider : AppWidgetProvider() {
                 }
             }
             WidgetUpdater.ACTION_TICK -> runAsync(context) {
-                WidgetUpdater.refresh(context, WidgetUpdater.widgetIds(context), force = false)
+                val ids = WidgetUpdater.widgetIds(context)
+                // Les widgets qui suivent la position la relisent d'abord, puis actualisent leurs passages.
+                val followed = AutoMode.followedNow(context, ids, System.currentTimeMillis())
+                followed.forEach { AutoMode.follow(context, it) }
+                WidgetUpdater.refresh(context, ids.filter { it !in followed }.toIntArray(), force = false)
+            }
+            // Notification balayée : elle ne revient pas à l'actualisation suivante.
+            PassageNotifications.ACTION_DISMISSED -> {
+                val id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+                if (id != AppWidgetManager.INVALID_APPWIDGET_ID) PassageNotifications.onDismissed(context, id)
             }
             else -> super.onReceive(context, intent)
         }
@@ -56,7 +65,10 @@ open class DeparturesWidgetProvider : AppWidgetProvider() {
 
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
         val prefs = Prefs(context)
-        appWidgetIds.forEach { prefs.deleteWidget(it) }
+        appWidgetIds.forEach {
+            prefs.deleteWidget(it)
+            PassageNotifications.cancel(context, it)
+        }
     }
 
     override fun onEnabled(context: Context) {

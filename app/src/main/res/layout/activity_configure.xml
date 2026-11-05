@@ -284,6 +284,57 @@
                 android:orientation="horizontal" />
         </LinearLayout>
 
+        <LinearLayout
+            android:id="@+id/notify_section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/bg_card_touch"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:minHeight="52dp"
+            android:orientation="horizontal"
+            android:paddingStart="@dimen/card_padding"
+            android:paddingTop="6dp"
+            android:paddingEnd="@dimen/card_padding"
+            android:paddingBottom="6dp">
+
+            <ImageView
+                android:id="@+id/notify_icon"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_notification_off" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/Text.RowTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/lock_title" />
+
+                <TextView
+                    android:id="@+id/notify_summary"
+                    style="@style/Text.RowSubtitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_chevron" />
+        </LinearLayout>
+
         <Button
             android:id="@+id/save"
             style="@style/ActionPrimary"

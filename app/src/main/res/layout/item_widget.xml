@@ -55,6 +55,12 @@
                 android:orientation="horizontal">
 
                 <ImageButton
+                    android:id="@+id/item_widget_notify"
+                    style="@style/IconAction"
+                    android:contentDescription="@string/main_widget_lock"
+                    android:src="@drawable/ic_notification_off" />
+
+                <ImageButton
                     android:id="@+id/item_widget_refresh"
                     style="@style/IconAction"
                     android:contentDescription="@string/main_widget_refresh"

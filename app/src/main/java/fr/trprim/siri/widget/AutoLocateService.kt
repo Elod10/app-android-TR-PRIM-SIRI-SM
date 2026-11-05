@@ -51,12 +51,16 @@ class AutoLocateService : Service() {
             return START_NOT_STICKY
         }
         val now = System.currentTimeMillis()
-        if (Prefs(app).auto(widgetId).isChoiceOpen(now)) {
-            AutoMode.openChoice(app, widgetId)
-            stopWhenIdle()
-            return START_NOT_STICKY
+        // Le bouton de la notification relit seulement la position : le double toucher est propre au widget.
+        val fromNotification = intent?.getBooleanExtra(EXTRA_FROM_NOTIFICATION, false) == true
+        if (!fromNotification) {
+            if (Prefs(app).auto(widgetId).isChoiceOpen(now)) {
+                AutoMode.openChoice(app, widgetId)
+                stopWhenIdle()
+                return START_NOT_STICKY
+            }
+            AutoMode.openDoubleTapWindow(app, widgetId, now)
         }
-        AutoMode.openDoubleTapWindow(app, widgetId, now)
         if (!running.add(widgetId)) return START_NOT_STICKY
 
         AutoMode.beginLocating(widgetId)
@@ -126,10 +130,13 @@ class AutoLocateService : Service() {
         super.onDestroy()
     }
 
-    private companion object {
-        const val TAG = "TRWidget"
-        const val CHANNEL_ID = "position"
-        const val NOTIFICATION_ID = 1
-        const val TIMEOUT_MS = 30_000L
+    companion object {
+        /** Démarrage par le bouton « Me localiser » de la notification du widget. */
+        const val EXTRA_FROM_NOTIFICATION = "fr.trprim.siri.extra.FROM_NOTIFICATION"
+
+        private const val TAG = "TRWidget"
+        private const val CHANNEL_ID = "position"
+        private const val NOTIFICATION_ID = 1
+        private const val TIMEOUT_MS = 30_000L
     }
 }
