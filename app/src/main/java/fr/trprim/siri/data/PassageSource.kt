@@ -44,6 +44,27 @@ object DataSources {
         formats: PrimClient.FormatCache = PrimClient.FormatCache.InMemory(),
     ): PassageSource = if (apiKey.isBlank()) TraceoClient() else PrimClient(apiKey, formats = formats)
 
+    /** Source du format À proximité : une requête par ligne sans clé, une par zone avec une clé. */
+    fun proximitySource(
+        apiKey: String,
+        formats: PrimClient.FormatCache = PrimClient.FormatCache.InMemory(),
+    ): (NearbyLine) -> Result<PassageSnapshot> {
+        if (apiKey.isBlank()) {
+            val traceo = TraceoClient()
+            return { nearby -> runCatching { traceo.passages(nearby.stopId, nearby.line.id) } }
+        }
+        val prim = PrimClient(apiKey, formats = formats)
+        return PrimZonePassages { stopId -> prim.departures(stopId, null) }::passages
+    }
+
+    /** Vrai si l'échec vient du réseau : inutile alors d'interroger d'autres lignes. */
+    fun isNetworkFailure(error: Throwable?): Boolean = when (error) {
+        null -> false
+        is TraceoException -> error.kind == TraceoException.Kind.NETWORK
+        is PrimException -> error.kind == PrimException.Kind.NETWORK
+        else -> true
+    }
+
     /** Intervalle d'actualisation réellement appliqué pour le réglage choisi par l'utilisateur. */
     fun refreshMinutes(chosen: Int, hasKey: Boolean): Int =
         if (!hasKey && chosen == 1) TRACEO_MIN_REFRESH_MINUTES else chosen
@@ -113,7 +134,7 @@ object WidgetStates {
         )
     }
 
-    private fun errorMessage(t: Throwable): String = when (t) {
+    fun errorMessage(t: Throwable): String = when (t) {
         is PrimException -> t.message ?: "Erreur PRIM"
         is TraceoException -> t.message ?: "Tracéo est indisponible."
         else -> "Erreur : ${t.message ?: t.javaClass.simpleName}"

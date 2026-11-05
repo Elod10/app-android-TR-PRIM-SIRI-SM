@@ -12,7 +12,6 @@ import fr.trprim.siri.data.DataSources
 import fr.trprim.siri.data.PassageRoute
 import fr.trprim.siri.data.PassageSnapshot
 import fr.trprim.siri.data.Prefs
-import fr.trprim.siri.data.WidgetState
 import fr.trprim.siri.data.WidgetStates
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -66,6 +65,7 @@ object WidgetUpdater {
                     fixedFormat = WidgetProviders.formatOf(manager.getAppWidgetInfo(widgetId)?.provider?.className),
                     renderScale = quality,
                     auto = prefs.auto(widgetId),
+                    proximity = prefs.proximity(widgetId),
                 )
                 manager.updateAppWidget(widgetId, views)
                 return
@@ -93,16 +93,24 @@ object WidgetUpdater {
             // Écran éteint (ex. rafraîchissement périodique déclenché par Android) : aucune requête,
             // sauf action explicite de l'utilisateur.
             val screenOn = isInteractive(context)
+            val nearby = ids.filter { WidgetProviders.isProximity(context, it) }
             val targets = ids.filter { id ->
                 val config = prefs.config(id)
+                val attemptedAt = if (id in nearby) prefs.proximity(id)?.attemptedAt else prefs.state(id)?.attemptedAt
                 // Un widget à reconfigurer ne fait aucun appel, même à la demande : Tracéo répondrait 404.
                 config != null && DataSources.route(config.stop.stopIds, hasKey) != PassageRoute.RECONFIGURE &&
-                    (force || (screenOn && needsRefresh(prefs.state(id), refreshMinutes, now)))
+                    (force || (screenOn && needsRefresh(attemptedAt, refreshMinutes, now)))
             }
             ids.filter { it !in targets }.forEach { render(context, it) }
             if (targets.isEmpty()) return
 
             targets.forEach { render(context, it, refreshing = true) }
+            targets.filter { it in nearby }.forEach { id ->
+                AutoMode.refreshProximity(context, id)
+                render(context, id)
+            }
+            val lineTargets = targets.filter { it !in nearby }
+            if (lineTargets.isEmpty()) return
             val source = DataSources.passageSource(prefs.apiKey, prefs.primFormats)
             coroutineScope {
                 // Requêtes partagées entre widgets portant sur le même point d'arrêt et la même ligne.
@@ -112,7 +120,7 @@ object WidgetUpdater {
                         async(Dispatchers.IO) { runCatching { source.passages(stopId, lineId) } }
                     }
 
-                val perWidget = targets.mapNotNull { id ->
+                val perWidget = lineTargets.mapNotNull { id ->
                     val config = prefs.config(id) ?: return@mapNotNull null
                     val stopIds = config.directions.keys.ifEmpty { config.stop.stopIds.toSet() }
                     Triple(id, config, stopIds.map { fetch(it, config.line.id) })
@@ -137,11 +145,11 @@ object WidgetUpdater {
     private fun isInteractive(context: Context): Boolean =
         context.getSystemService(PowerManager::class.java)?.isInteractive ?: true
 
-    private fun needsRefresh(state: WidgetState?, refreshMinutes: Int, now: Long): Boolean {
-        if (state == null) return true
+    private fun needsRefresh(attemptedAt: Long?, refreshMinutes: Int, now: Long): Boolean {
+        if (attemptedAt == null) return true
         if (refreshMinutes <= 0) return false
         // Marge de 15 s car les alarmes non exactes peuvent arriver un peu tôt ou tard.
-        return now - state.attemptedAt >= refreshMinutes * 60_000L - 15_000L
+        return now - attemptedAt >= refreshMinutes * 60_000L - 15_000L
     }
 
     // --- Planification du tick -------------------------------------------------------------

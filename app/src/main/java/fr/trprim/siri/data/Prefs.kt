@@ -61,6 +61,20 @@ class Prefs(context: Context) {
         widgets.edit().putString(autoKey(widgetId), state.toJson().toString()).apply()
     }
 
+    /** Dernier état du format À proximité, pour ce widget. */
+    fun proximity(widgetId: Int): ProximityState? {
+        val raw = widgets.getString(proximityKey(widgetId), null) ?: return null
+        return try {
+            ProximityState.fromJson(JSONObject(raw))
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun saveProximity(widgetId: Int, state: ProximityState) {
+        widgets.edit().putString(proximityKey(widgetId), state.toJson().toString()).apply()
+    }
+
     /** Lignes favorites du mode automatique. */
     val favoriteLines: Set<String>
         get() = settings.getStringSet(KEY_FAVORITE_LINES, null)?.toSet().orEmpty()
@@ -101,7 +115,12 @@ class Prefs(context: Context) {
     }
 
     fun deleteWidget(widgetId: Int) {
-        widgets.edit().remove(configKey(widgetId)).remove(stateKey(widgetId)).remove(autoKey(widgetId)).apply()
+        widgets.edit()
+            .remove(configKey(widgetId))
+            .remove(stateKey(widgetId))
+            .remove(autoKey(widgetId))
+            .remove(proximityKey(widgetId))
+            .apply()
     }
 
     /** Supprime les données des widgets qui n'existent plus. */
@@ -125,5 +144,6 @@ class Prefs(context: Context) {
         private fun configKey(id: Int) = "config_$id"
         private fun stateKey(id: Int) = "state_$id"
         private fun autoKey(id: Int) = "auto_$id"
+        private fun proximityKey(id: Int) = "proximity_$id"
     }
 }

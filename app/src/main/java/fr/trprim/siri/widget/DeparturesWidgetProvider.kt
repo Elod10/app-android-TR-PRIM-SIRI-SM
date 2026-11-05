@@ -48,6 +48,10 @@ open class DeparturesWidgetProvider : AppWidgetProvider() {
         newOptions: Bundle?,
     ) {
         WidgetUpdater.render(context, appWidgetId)
+        // Un widget À proximité agrandi affiche plus de lignes : il faut leurs passages.
+        if (AutoMode.wantsMoreLines(context, appWidgetId)) {
+            runAsync(context) { WidgetUpdater.refresh(context, intArrayOf(appWidgetId), force = true) }
+        }
     }
 
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {

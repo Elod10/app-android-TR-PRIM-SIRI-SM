@@ -55,6 +55,12 @@ object Palettes {
         }
     }
 
+    /** Couleur d'une ligne et couleur de texte lisible dessus. */
+    fun lineColors(line: Line): Pair<Int, Int> {
+        val color = parseColor(line.color) ?: defaultColor(line.mode)
+        return color to onColor(color, parseColor(line.textColor))
+    }
+
     private fun darkPalette(line: Int, on: Int) = Palette(
         isLine = false,
         background = INK,

@@ -6,6 +6,9 @@ import fr.trprim.siri.data.Departure
 import fr.trprim.siri.data.Directions
 import fr.trprim.siri.data.Line
 import fr.trprim.siri.data.PassageRoute
+import fr.trprim.siri.data.Proximity
+import fr.trprim.siri.data.ProximityEntry
+import fr.trprim.siri.data.ProximityState
 import fr.trprim.siri.data.TraceoClient
 import fr.trprim.siri.data.WidgetConfig
 import fr.trprim.siri.data.WidgetState
@@ -13,9 +16,10 @@ import fr.trprim.siri.data.WidgetTheme
 import fr.trprim.siri.data.formatDistance
 import fr.trprim.siri.data.normalizeLabel
 import kotlin.math.max
+import kotlin.math.min
 
 /**
- * Les neuf formats du widget. Les dimensions sont celles de la maquette (en dp) : le dessin
+ * Les dix formats du widget. Les dimensions sont celles de la maquette (en dp) : le dessin
  * part de ces valeurs et s'adapte ensuite à la taille réelle attribuée par le lanceur.
  */
 enum class WidgetFormat(
@@ -33,17 +37,24 @@ enum class WidgetFormat(
     DEUX_SENS(172f, 192f, 28f, false),
     TRAIN(172f, 192f, 28f, false),
     DEUX_SENS_LARGE(348f, 192f, 28f, true),
-    LISTE(348f, 192f, 28f, false);
+    LISTE(348f, 192f, 28f, false),
+    PROXIMITE(348f, 192f, 28f, false);
 
-    /** Vrai pour les formats pensés pour afficher les deux sens côte à côte. */
+    /** Échelle du dessin : le format s'agrandit avec le widget, dans des limites lisibles. */
+    fun sceneScale(widthDp: Float, heightDp: Float): Float =
+        min(widthDp / baseWidth, heightDp / baseHeight).coerceIn(MIN_SCALE, MAX_SCALE)
+
+    /** Vrai pour les formats pensés pour afficher les deux sens. */
     val showsBothDirections: Boolean
-        get() = this == COMPACT || this == DEUX_SENS || this == DEUX_SENS_LARGE
+        get() = this == COMPACT || this == DEUX_SENS || this == DEUX_SENS_LARGE || this == PROXIMITE
 
     /** Vrai pour les formats qui n'affichent qu'un sens : la configuration n'en accepte qu'un. */
     val followsOneDirection: Boolean
         get() = this == PASTILLE || this == UN_SENS || this == GRAND_CHIFFRE || this == FRISE || this == TRAIN
 
     companion object {
+        private const val MIN_SCALE = 0.75f
+        private const val MAX_SCALE = 1.6f
         private const val NARROW_BELOW = 130f
         private const val WIDE_FROM = 250f
         private const val TALL_FROM = 150f
@@ -88,6 +99,8 @@ data class Passage(
     val mission: String?,
     val delayMinutes: Int,
     val atStopLabel: String,
+    /** Sens indiqué par la source (« Aller », « Retour »…), s'il est connu. */
+    val directionRef: String? = null,
 ) {
     /** Le retard n'est signalé en couleur qu'à partir de 2 minutes. */
     val isDelayed: Boolean get() = kind != WaitKind.CANCELLED && delayMinutes >= 2
@@ -144,6 +157,36 @@ data class LineBadge(val label: String, val shape: BadgeShape)
 
 enum class NoticeKind { NOT_CONFIGURED, RECONFIGURE, LOADING, NO_DEPARTURE, ERROR }
 
+/** Un sens d'une ligne du format À proximité. */
+data class ProximityDirection(val label: String, val first: Passage, val next: Passage?)
+
+/** Une ligne du format À proximité, prête à être dessinée. */
+data class ProximityRow(
+    val badge: LineBadge,
+    val badgeBg: Int,
+    val badgeFg: Int,
+    /** Arrêt et distance : « Hôtel de Ville · 33 m ». */
+    val place: String,
+    /** Un ou deux sens ; vide si la ligne, favorite ou choisie ici, n'a aucun passage. */
+    val directions: List<ProximityDirection>,
+)
+
+/** Rangées du format À proximité selon la taille du widget. */
+object ProximityLayout {
+
+    const val TITLE = "À proximité"
+
+    /** Marges du haut et du bas, en-tête compris. */
+    private const val CHROME_HEIGHT = 58f
+    private const val MIN_BLOCK_HEIGHT = 64f
+    private const val MAX_ROWS = 5
+
+    fun rows(widthDp: Float, heightDp: Float): Int {
+        val sceneHeight = heightDp / WidgetFormat.PROXIMITE.sceneScale(widthDp, heightDp)
+        return ((sceneHeight - CHROME_HEIGHT) / MIN_BLOCK_HEIGHT).toInt().coerceIn(1, MAX_ROWS)
+    }
+}
+
 /** Message affiché à la place des passages. */
 data class Notice(val kind: NoticeKind, val detail: String? = null)
 
@@ -171,6 +214,8 @@ data class WidgetModel(
     val autoHint: String? = null,
     /** Version courte de [autoHint] pour le format Pastille, par exemple « +3 ». */
     val autoHintShort: String? = null,
+    /** Lignes du format À proximité. */
+    val proximity: List<ProximityRow> = emptyList(),
 )
 
 object WidgetContent {
@@ -206,7 +251,32 @@ object WidgetContent {
             mission = if (rail) d.journeyNote else null,
             delayMinutes = d.delayMinutes,
             atStopLabel = if (rail || mode == "metro") "À quai" else "À l'arrêt",
+            directionRef = d.directionRef,
         )
+    }
+
+    /**
+     * Les deux sens d'une ligne, chacun avec son prochain passage et le suivant, quelle qu'en soit la
+     * destination : sur un RER, chaque rangée montre donc le premier train à venir dans ce sens, toutes
+     * branches confondues. Sans sens indiqué par la source, on regroupe par destination. L'ordre ne
+     * dépend pas des horaires, pour que les sens ne s'échangent pas d'une actualisation à l'autre.
+     */
+    fun proximityDirections(passages: List<Passage>, lineId: String = "", stopName: String = ""): List<ProximityDirection> {
+        val byRef = passages.isNotEmpty() && passages.all { !it.directionRef.isNullOrBlank() }
+        fun keyOf(passage: Passage) = normalizeLabel(
+            if (byRef) Directions.realDirection(lineId, passage.destination, passage.directionRef, stopName) else passage.directionKey,
+        )
+        return passages.groupBy(::keyOf).values
+            .sortedBy { group -> group.firstOrNull { it.kind != WaitKind.CANCELLED }?.railMinutes ?: Int.MAX_VALUE }
+            .take(2)
+            .sortedBy { keyOf(it.first()) }
+            .map { group ->
+                ProximityDirection(
+                    label = shortName(group.first().destination),
+                    first = group.first(),
+                    next = group.drop(1).firstOrNull { it.kind != WaitKind.CANCELLED },
+                )
+            }
     }
 
     /**
@@ -327,6 +397,7 @@ object WidgetContent {
 
     /** Résumé du widget pour les lecteurs d'écran. */
     fun describe(model: WidgetModel): String {
+        if (model.format == WidgetFormat.PROXIMITE) return describeProximity(model)
         val parts = ArrayList<String>()
         model.line?.let { parts += "Ligne ${it.label}" }
         if (model.stopName.isNotEmpty()) parts += model.stopName
@@ -339,6 +410,19 @@ object WidgetContent {
         val stale = if (model.stale) " Actualisation impossible, données de ${model.timeLabel}." else ""
         val hint = model.autoHint?.let { " $it." }.orEmpty()
         return "$header. $body$stale${describeSource(model)}$hint".trim()
+    }
+
+    private fun describeProximity(model: WidgetModel): String {
+        val lines = model.proximity.joinToString(" ") { row ->
+            val directions = row.directions.joinToString(" ") { direction ->
+                val then = direction.next?.let { ", puis ${it.spokenWait}" }.orEmpty()
+                "Vers ${direction.label} : ${direction.first.spokenWait}$then."
+            }.ifEmpty { "Aucun passage." }
+            "Ligne ${row.badge.label}, ${row.place}. $directions"
+        }
+        val stale = if (model.stale) " Actualisation impossible, données de ${model.timeLabel}." else ""
+        val hint = model.autoHint?.let { " $it." }.orEmpty()
+        return "${model.stopName}. $lines$stale${describeSource(model)}$hint".trim()
     }
 
     private fun describeSource(model: WidgetModel): String {
@@ -410,6 +494,78 @@ object WidgetModels {
             oldSnapshot = snapshot?.fresh == false && !quiet,
             autoHint = hint?.label,
             autoHintShort = hint?.short,
+        )
+    }
+
+    /**
+     * Modèle du format À proximité. Sa couleur suit le thème du système, et son contenu vient de
+     * plusieurs lignes : il a donc son propre état.
+     *
+     * @param night vrai si le système est en thème sombre
+     */
+    fun buildProximity(
+        config: WidgetConfig?,
+        state: ProximityState?,
+        refreshing: Boolean,
+        widthDp: Float,
+        heightDp: Float,
+        now: Long,
+        night: Boolean,
+        autoHint: AutoHint? = null,
+    ): WidgetModel {
+        val format = WidgetFormat.PROXIMITE
+        val palette = Palettes.resolve(if (night) WidgetTheme.DARK else WidgetTheme.LIGHT, format, null)
+        val rows = if (config == null || state == null) {
+            emptyList()
+        } else {
+            Proximity.visible(state.entries, now, ProximityLayout.rows(widthDp, heightDp)).map { rowOf(it, now) }
+        }
+        val notice = when {
+            config == null -> Notice(NoticeKind.NOT_CONFIGURED)
+            rows.isNotEmpty() -> null
+            state == null -> Notice(NoticeKind.LOADING)
+            state.error != null -> Notice(NoticeKind.ERROR, state.error)
+            else -> Notice(NoticeKind.NO_DEPARTURE)
+        }
+        val snapshot = state?.takeIf { it.isSnapshot }
+        val shownAt = if (snapshot != null) snapshot.dataAt ?: 0L else state?.fetchedAt ?: 0L
+        val hint = autoHint.takeIf { !refreshing }
+        val quiet = refreshing || hint != null
+        return WidgetModel(
+            format = format,
+            palette = palette,
+            line = null,
+            stopName = ProximityLayout.TITLE,
+            passages = emptyList(),
+            groups = emptyList(),
+            timeLabel = when {
+                refreshing -> "…"
+                hint != null -> hint.label
+                shownAt > 0L -> DepartureFormat.clock(shownAt)
+                else -> ""
+            },
+            stale = state?.error != null && rows.isNotEmpty(),
+            refreshing = refreshing,
+            notice = notice,
+            sourceLabel = if (snapshot != null && !quiet) TraceoClient.SOURCE_NAME else null,
+            sourceDetail = if (snapshot != null && !quiet) TraceoClient.SOURCE_DETAIL else null,
+            oldSnapshot = snapshot?.fresh == false && !quiet,
+            autoHint = hint?.label,
+            autoHintShort = hint?.short,
+            proximity = rows,
+        )
+    }
+
+    private fun rowOf(entry: ProximityEntry, now: Long): ProximityRow {
+        val line = entry.nearby.line
+        val (background, foreground) = Palettes.lineColors(line)
+        val passages = Proximity.upcoming(entry.departures, now).map { WidgetContent.passage(it, now, line.mode) }
+        return ProximityRow(
+            badge = badgeOf(line),
+            badgeBg = background,
+            badgeFg = foreground,
+            place = "${entry.nearby.stopName} · ${formatDistance(entry.nearby.distanceM)}",
+            directions = WidgetContent.proximityDirections(passages, line.id, entry.nearby.stopName),
         )
     }
 

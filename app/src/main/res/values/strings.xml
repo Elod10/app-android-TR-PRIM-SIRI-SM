@@ -24,6 +24,8 @@
     <string name="widget_train_description">Le prochain train et sa voie, pour RER et Transilien</string>
     <string name="widget_liste_name">Liste des départs</string>
     <string name="widget_liste_description">Les prochains départs avec mission et voie ; s\'allonge pour en afficher plus</string>
+    <string name="widget_proximite_name">À proximité</string>
+    <string name="widget_proximite_description">Les lignes près de vous, dans les deux sens, selon votre position</string>
     <string name="widget_not_configured">Widget non configuré</string>
     <string name="widget_tap_to_configure">Touchez pour choisir la ligne, l\'arrêt et le sens.</string>
     <string name="widget_reconfigure_title">Reconfigurez ce widget</string>
@@ -119,6 +121,8 @@
     <string name="auto_row_active">Activé : touchez pour revoir les lignes proches</string>
     <string name="step_auto">Automatique, selon ma position</string>
     <string name="auto_help">Le widget affichera la ligne cochée. Ensuite, touchez-le pour relire la position, ou touchez-le deux fois de suite pour choisir une autre ligne. La position sert seulement à chercher les arrêts sur ce téléphone : elle n\'est lue qu\'au toucher et n\'est envoyée à personne.</string>
+    <string name="proximite_help">Le widget affiche les lignes près de vous. Touchez-le pour relire la position, ou touchez-le deux fois de suite pour choisir une autre ligne. La position sert seulement à chercher les arrêts sur ce téléphone : elle n\'est lue qu\'au toucher et n\'est envoyée à personne.</string>
+    <string name="main_proximite_subtitle">Lignes près de vous, selon votre position</string>
     <string name="auto_loading_index">Préparation de la liste des arrêts (environ 3 Mo, une seule fois)…</string>
     <string name="auto_loading_position">Recherche de votre position…</string>
     <string name="auto_error_permission">Sans accès à la position, le mode automatique ne peut pas trouver les arrêts proches. Vous pouvez l\'autoriser dans les réglages de l\'application. Elle n\'est lue qu\'au toucher du widget et n\'est envoyée à personne.</string>

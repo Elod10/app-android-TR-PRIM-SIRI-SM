@@ -21,9 +21,6 @@ import kotlin.math.roundToInt
  */
 object WidgetPainter {
 
-    private const val MIN_SCALE = 0.75f
-    private const val MAX_SCALE = 1.6f
-
     @Volatile
     private var fonts: Fonts? = null
 
@@ -33,8 +30,7 @@ object WidgetPainter {
             max(1, (heightDp * density).roundToInt()),
             Bitmap.Config.ARGB_8888,
         )
-        val format = model.format
-        val scale = min(widthDp / format.baseWidth, heightDp / format.baseHeight).coerceIn(MIN_SCALE, MAX_SCALE)
+        val scale = model.format.sceneScale(widthDp, heightDp)
         val canvas = Canvas(bitmap)
         canvas.scale(density * scale, density * scale)
         Scene(context, canvas, widthDp / scale, heightDp / scale, model, fontsFor(context)).draw()
@@ -123,6 +119,10 @@ private class Scene(
             noticeView(notice)
             return
         }
+        if (model.format == WidgetFormat.PROXIMITE) {
+            proximite()
+            return
+        }
         val first = model.passages.firstOrNull() ?: return
         when (model.format) {
             WidgetFormat.PASTILLE -> pastille(first)
@@ -140,7 +140,100 @@ private class Scene(
             WidgetFormat.TRAIN -> train(first)
             WidgetFormat.DEUX_SENS_LARGE -> deuxSensLarge()
             WidgetFormat.LISTE -> liste()
+            WidgetFormat.PROXIMITE -> Unit
         }
+    }
+
+    // --- À proximité ---------------------------------------------------------------------------
+
+    private fun proximite() {
+        val rows = model.proximity
+        if (rows.isEmpty()) return
+        val left = 16f
+        val right = w - 16f
+        val top = 12f
+        val headerCy = top + 15f
+        pin(left, headerCy, 16f, p.text)
+        val titleX = left + 24f
+        val noteWidth = if (model.stale) {
+            textRight(staleMessage, right, headerCy + 4.5f, Face.SEMI, 13f, p.late)
+        } else {
+            timeLabel(right, headerCy + 4.7f, 13.5f, room = right - titleX - measure(model.stopName, Face.SEMI, 18f) - 8f)
+        }
+        val title = fit(model.stopName, Face.SEMI, 18f, right - titleX - noteWidth - 8f)
+        text(title, titleX, baseline(top, 30f, 18f), Face.SEMI, 18f, p.text)
+
+        val firstTop = top + 34f
+        val available = h - 12f - firstTop - (rows.size - 1)
+        val blockHeight = min(available / rows.size, MAX_PROXIMITY_BLOCK)
+        // Les textes restent alignés quand un badge de bus est plus large qu'un badge de métro.
+        val textX = left + rows.maxOf { badgeWidth(PROXIMITY_BADGE, it.badge) } + 10f
+        rows.forEachIndexed { index, row ->
+            val blockTop = firstTop + index * (blockHeight + 1f)
+            if (index > 0) rect(left, blockTop - 1f, right, blockTop, p.hair)
+            proximityBlock(row, left, textX, right, blockTop, blockHeight)
+        }
+    }
+
+    /** Une ligne : l'arrêt et la distance, puis une rangée par sens. */
+    private fun proximityBlock(row: ProximityRow, left: Float, textX: Float, right: Float, top: Float, height: Float) {
+        badge(left, top + height / 2f, PROXIMITY_BADGE, row.badge, row.badgeBg, row.badgeFg, row.badgeBg)
+        val contentHeight = PROXIMITY_PLACE + maxOf(1, row.directions.size) * PROXIMITY_DIRECTION
+        val contentTop = top + (height - contentHeight) / 2f
+        val place = fit(row.place, Face.REGULAR, 13f, right - textX)
+        text(place, textX, baseline(contentTop, PROXIMITY_PLACE, 13f), Face.REGULAR, 13f, p.text3)
+
+        val firstRow = contentTop + PROXIMITY_PLACE
+        if (row.directions.isEmpty()) {
+            val base = baseline(firstRow, PROXIMITY_DIRECTION, 14.5f)
+            text(context.getString(R.string.widget_short_no_departure), textX, base, Face.MEDIUM, 14.5f, p.text2)
+            textRight("—", right - PROXIMITY_THEN, base, Face.COND_BOLD, 24f, p.text3)
+            return
+        }
+        row.directions.forEachIndexed { index, direction ->
+            proximityDirection(direction, textX, right, firstRow + index * PROXIMITY_DIRECTION)
+        }
+    }
+
+    /** Un sens : destination à gauche, attente et passage suivant alignés en colonnes à droite. */
+    private fun proximityDirection(direction: ProximityDirection, x: Float, right: Float, top: Float) {
+        val first = direction.first
+        val cancelled = first.kind == WaitKind.CANCELLED
+        val base = baseline(top, PROXIMITY_DIRECTION, 14.5f)
+        direction.next
+            ?.thenLabelFitting { measure(it, Face.MEDIUM, 13f) <= PROXIMITY_THEN - 6f }
+            ?.let { textRight(it, right, base, Face.MEDIUM, 13f, if (model.stale) p.text3 else p.text2) }
+
+        val spec = HeroSpec(
+            number = 24f, unit = 12.5f, atStop = 15f, imminent = 15f, cancelled = 13f,
+            cancelledFace = Face.SEMI, pillAtStop = false, imminentAsNumber = true,
+        )
+        val timeRight = right - PROXIMITY_THEN
+        val hero = hero(first, spec, PROXIMITY_TIME, model.stale)
+        val heroWidth = heroWidth(hero)
+        drawHero(hero, timeRight - heroWidth, base)
+
+        val arrowColor = if (cancelled || model.stale) p.text3 else p.text2
+        arrow(x, top + PROXIMITY_DIRECTION / 2f, 10f, arrowColor)
+        val labelX = x + 13f
+        val label = fit(direction.label, Face.MEDIUM, 14.5f, timeRight - heroWidth - 6f - labelX)
+        val labelColor = if (cancelled || model.stale) p.text3 else p.text
+        text(label, labelX, base, Face.MEDIUM, 14.5f, labelColor, strike = cancelled)
+    }
+
+    private fun pin(x: Float, cy: Float, size: Float, color: Int) {
+        val unit = size / 12f
+        val top = cy - size / 2f
+        stroke.color = color
+        stroke.strokeWidth = 1.3f * unit
+        path.reset()
+        path.moveTo(x + 6f * unit, top + 11f * unit)
+        path.cubicTo(x + 6f * unit, top + 11f * unit, x + 10f * unit, top + 7.3f * unit, x + 10f * unit, top + 4.4f * unit)
+        path.arcTo(x + 2f * unit, top + 0.4f * unit, x + 10f * unit, top + 8.4f * unit, 0f, -180f, false)
+        path.cubicTo(x + 2f * unit, top + 7.3f * unit, x + 6f * unit, top + 11f * unit, x + 6f * unit, top + 11f * unit)
+        path.close()
+        canvas.drawPath(path, stroke)
+        circle(x + 6f * unit, top + 4.5f * unit, 1.3f * unit, color)
     }
 
     // --- Un sens ------------------------------------------------------------------------------
@@ -948,8 +1041,8 @@ private class Scene(
         return width
     }
 
-    private fun badgeWidth(height: Float): Float {
-        val line = model.line ?: return 0f
+    private fun badgeWidth(height: Float, line: LineBadge? = model.line): Float {
+        line ?: return 0f
         val textWidth = measure(line.label, Face.COND_BOLD, badgeTextSize(line, height))
         return when (line.shape) {
             BadgeShape.CIRCLE, BadgeShape.SQUARE -> max(height, textWidth + height * 0.45f)
@@ -962,25 +1055,33 @@ private class Scene(
         height * if (line.shape == BadgeShape.TRAM) 0.66f else 0.7f
 
     /** Pastille de ligne à partir de [x], centrée sur [cy]. Renvoie sa largeur. */
-    private fun badge(x: Float, cy: Float, height: Float): Float {
-        val line = model.line ?: return 0f
-        val width = badgeWidth(height)
+    private fun badge(
+        x: Float,
+        cy: Float,
+        height: Float,
+        line: LineBadge? = model.line,
+        background: Int = p.badgeBg,
+        foreground: Int = p.badgeFg,
+        rail: Int = p.rail,
+    ): Float {
+        line ?: return 0f
+        val width = badgeWidth(height, line)
         val half = height / 2f
         when (line.shape) {
-            BadgeShape.CIRCLE -> roundRect(x, cy - half, x + width, cy + half, half, p.badgeBg)
-            BadgeShape.SQUARE -> roundRect(x, cy - half, x + width, cy + half, height * 0.25f, p.badgeBg)
+            BadgeShape.CIRCLE -> roundRect(x, cy - half, x + width, cy + half, half, background)
+            BadgeShape.SQUARE -> roundRect(x, cy - half, x + width, cy + half, height * 0.25f, background)
             BadgeShape.BUS -> {
                 val busHalf = height * 0.44f
-                roundRect(x, cy - busHalf, x + width, cy + busHalf, height * 0.2f, p.badgeBg)
+                roundRect(x, cy - busHalf, x + width, cy + busHalf, height * 0.2f, background)
             }
             BadgeShape.TRAM -> {
-                rect(x, cy - half, x + width, cy - half + 3f, p.rail)
-                rect(x, cy + half - 3f, x + width, cy + half, p.rail)
+                rect(x, cy - half, x + width, cy - half + 3f, rail)
+                rect(x, cy + half - 3f, x + width, cy + half, rail)
             }
         }
         val size = badgeTextSize(line, height)
         val textWidth = measure(line.label, Face.COND_BOLD, size)
-        val color = if (line.shape == BadgeShape.TRAM) p.text else p.badgeFg
+        val color = if (line.shape == BadgeShape.TRAM) p.text else foreground
         text(line.label, x + (width - textWidth) / 2f, cy + 0.35f * size, Face.COND_BOLD, size, color)
         return width
     }
@@ -1114,5 +1215,18 @@ private class Scene(
 
         /** Largeur d'en-tête à partir de laquelle « Tracéo 22:34 » tient sur une ligne. */
         const val WIDE_HEADER = 250f
+
+        const val PROXIMITY_BADGE = 26f
+        const val PROXIMITY_PLACE = 15f
+        const val PROXIMITY_DIRECTION = 24f
+
+        /** Largeur de la colonne de l'attente. */
+        const val PROXIMITY_TIME = 54f
+
+        /** Largeur de la colonne du passage suivant, espace compris. */
+        const val PROXIMITY_THEN = 46f
+
+        /** Une ligne seule ne doit pas s'étirer sur toute la hauteur du widget. */
+        const val MAX_PROXIMITY_BLOCK = 96f
     }
 }

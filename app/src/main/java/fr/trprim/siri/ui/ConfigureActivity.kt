@@ -106,6 +106,9 @@ class ConfigureActivity : Activity() {
         WidgetProviders.formatOf(AppWidgetManager.getInstance(this).getAppWidgetInfo(widgetId)?.provider?.className)
     }
 
+    /** Le format À proximité suit toujours la position : seule la permission reste à demander. */
+    private val isProximity: Boolean get() = chosenFormat == WidgetFormat.PROXIMITE
+
     /** Vrai si le format choisi n'affiche qu'un sens : un seul peut alors être coché. */
     private val oneDirectionOnly: Boolean get() = chosenFormat?.followsOneDirection == true
 
@@ -177,7 +180,7 @@ class ConfigureActivity : Activity() {
         keyContinue.setOnClickListener { submitKey() }
         findViewById<TextView>(R.id.key_help).movementMethod = LinkMovementMethod.getInstance()
 
-        goTo(Step.MODE)
+        goTo(if (isProximity) Step.AUTO else Step.MODE)
     }
 
     override fun onDestroy() {
@@ -220,7 +223,8 @@ class ConfigureActivity : Activity() {
         when (step) {
             Step.DIRECTION -> goTo(if (viaShortcut) Step.MODE else Step.STOP)
             Step.STOP -> goTo(Step.LINE)
-            Step.LINE, Step.KEY, Step.AUTO -> goTo(Step.MODE)
+            Step.LINE, Step.KEY -> goTo(Step.MODE)
+            Step.AUTO -> if (isProximity) super.onBackPressed() else goTo(Step.MODE)
             Step.MODE -> super.onBackPressed()
         }
     }
@@ -420,7 +424,7 @@ class ConfigureActivity : Activity() {
             loadAuto()
             return
         }
-        stepHelp.text = getString(R.string.auto_help)
+        stepHelp.text = getString(if (isProximity) R.string.proximite_help else R.string.auto_help)
         stepHelp.visibility = View.VISIBLE
         showLoading(getString(R.string.auto_loading_position))
         requestPermissions(
@@ -469,6 +473,19 @@ class ConfigureActivity : Activity() {
             val ranked = withContext(Dispatchers.IO) { AutoMode.ranking(this@ConfigureActivity, fix.point) }?.list.orEmpty()
             if (ranked.isEmpty()) {
                 showMessage(getString(R.string.auto_error_no_stop), canRetry = true)
+                return@launch
+            }
+            if (isProximity) {
+                // Rien à choisir ici : le widget affiche les lignes proches selon le classement.
+                AutoMode.saveConfiguration(
+                    context = this@ConfigureActivity,
+                    widgetId = widgetId,
+                    nearby = ranked.first().nearby,
+                    fix = fix,
+                    theme = WidgetTheme.AUTO,
+                    changedByUser = false,
+                )
+                finishSaved()
                 return@launch
             }
             autoFix = fix

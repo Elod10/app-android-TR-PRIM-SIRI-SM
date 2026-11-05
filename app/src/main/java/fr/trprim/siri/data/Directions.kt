@@ -115,13 +115,19 @@ object Directions {
 
     /**
      * Retire les arrivées au terminus, pour ne pas afficher « → Auber » à Auber. Le suffixe de commune
-     * final, « (Grande Arche) » par exemple, ne compte pas dans la comparaison.
+     * final, « (Grande Arche) » par exemple, ne compte pas dans la comparaison. Au bout d'une branche,
+     * un train annoncé « Aller » ne peut qu'arriver, quel que soit son terminus annoncé : le flux annonce
+     * par exemple « Sucy - Bonneuil » sur des trains qui vont jusqu'à Boissy.
      */
     fun withoutTerminusArrivals(departures: List<Departure>, stopName: String): List<Departure> {
         val stop = terminusKey(stopName)
         if (stop.isEmpty()) return departures
-        return departures.filter { terminusKey(it.destination) != stop }
+        return departures.filter { terminusKey(it.destination) != stop && !arrivesAtBranchEnd(it, stop) }
     }
+
+    private fun arrivesAtBranchEnd(departure: Departure, stop: String): Boolean =
+        normalizeLabel(departure.directionRef) == ALLER &&
+            BRANCH_ENDS[Referential.bareLineId(departure.lineRef.orEmpty())] == stop
 
     private fun terminusKey(name: String): String = normalizeLabel(name.replace(FINAL_TOWN_SUFFIX, ""))
 
@@ -136,6 +142,77 @@ object Directions {
             }
             .distinctBy { Triple(normalizeLabel(it.destination), it.displayTime, it.stopId) }
             .sortedBy { it.displayTime ?: Long.MAX_VALUE }
+
+    /**
+     * Le sens réel d'un passage. Le flux SIRI ET annonce « Retour » pour les trains Saint-Germain - Chessy
+     * dans les deux sens, et pour Torcy tantôt « Aller », tantôt « Retour » (relevés du 5 novembre 2026).
+     * Sur le RER A, on compare donc la gare et le terminus dans l'ordre réel de la ligne : un terminus déjà
+     * dépassé est vers l'ouest, les autres vers l'est. Le sens annoncé ne sert que vers les branches ouest,
+     * où il reste fiable.
+     *
+     * @param stopName gare où l'on se trouve, sans laquelle un terminus de la liste compte comme vers l'est
+     */
+    fun realDirection(lineId: String, destination: String, directionRef: String?, stopName: String = ""): String? {
+        if (Referential.bareLineId(lineId) != RER_A) return directionRef
+        val terminus = terminusKey(destination)
+        val routes = RER_A_ROUTES.filter { terminus in it }
+        if (routes.isEmpty()) return if (normalizeLabel(directionRef) == ALLER) RER_A_EAST else RER_A_WEST
+        val here = terminusKey(stopName)
+        val alreadyPassed = routes.any { here in it && it.indexOf(here) > it.indexOf(terminus) }
+        return if (alreadyPassed) RER_A_WEST else RER_A_EAST
+    }
+
+    private const val ALLER = "aller"
+    private const val RER_A = "C01742"
+    private const val RER_B = "C01743"
+    private const val RER_A_EAST = "est"
+    private const val RER_A_WEST = "ouest"
+
+    /** Tronc commun du RER A, d'ouest en est : ordre vérifié sur les trains du flux, le 5 novembre 2026. */
+    private val RER_A_TRUNK = listOf(
+        "Nanterre - Préfecture",
+        "La Défense",
+        "Charles de Gaulle - Étoile",
+        "Auber",
+        "Châtelet - Les Halles",
+        "Gare de Lyon",
+        "Nation",
+        "Vincennes",
+    )
+
+    /** Les deux parcours du tronc commun vers les branches est. */
+    private val RER_A_ROUTES = listOf(
+        RER_A_TRUNK + listOf(
+            "Fontenay-sous-Bois",
+            "Nogent-sur-Marne",
+            "Joinville-le-Pont",
+            "Saint-Maur - Créteil",
+            "Le Parc de Saint-Maur",
+            "Champigny",
+            "La Varenne - Chennevières",
+            "Sucy - Bonneuil",
+            "Boissy-Saint-Léger",
+        ),
+        RER_A_TRUNK + listOf(
+            "Val de Fontenay",
+            "Neuilly-Plaisance",
+            "Bry-sur-Marne",
+            "Noisy-le-Grand - Mont d'Est",
+            "Noisy - Champs",
+            "Noisiel",
+            "Lognes",
+            "Torcy",
+            "Bussy-Saint-Georges",
+            "Val d'Europe",
+            "Marne-la-Vallée Chessy",
+        ),
+    ).map { route -> route.map(::terminusKey) }
+
+    /** Bouts de branche où des trains annoncés « Aller » portent un autre terminus (relevés du 5 novembre 2026). */
+    private val BRANCH_ENDS = mapOf(
+        RER_A to terminusKey("Boissy-Saint-Léger"),
+        RER_B to terminusKey("Robinson"),
+    )
 
     const val ALL_DIRECTIONS = "Tous les sens"
 }

@@ -3,6 +3,10 @@ package fr.trprim.siri.widget
 import fr.trprim.siri.data.AutoHint
 import fr.trprim.siri.data.Departure
 import fr.trprim.siri.data.Line
+import fr.trprim.siri.data.NearbyLine
+import fr.trprim.siri.data.NearbyReason
+import fr.trprim.siri.data.ProximityEntry
+import fr.trprim.siri.data.ProximityState
 import fr.trprim.siri.data.Stop
 import fr.trprim.siri.data.TransportMode
 import fr.trprim.siri.data.WidgetConfig
@@ -141,7 +145,10 @@ class WidgetContentTest {
     @Test
     fun twoDirectionFormatsAreIdentified() {
         val both = WidgetFormat.entries.filter { it.showsBothDirections }
-        assertEquals(listOf(WidgetFormat.COMPACT, WidgetFormat.DEUX_SENS, WidgetFormat.DEUX_SENS_LARGE), both)
+        assertEquals(
+            listOf(WidgetFormat.COMPACT, WidgetFormat.DEUX_SENS, WidgetFormat.DEUX_SENS_LARGE, WidgetFormat.PROXIMITE),
+            both,
+        )
     }
 
     @Test
@@ -555,6 +562,321 @@ class WidgetContentTest {
     @Test
     fun aWidgetSavedWithoutThemeKeepsItsColors() {
         assertEquals(WidgetTheme.AUTO, WidgetTheme.fromName(null))
+    }
+
+    // --- Format À proximité ----------------------------------------------------------------------
+
+    private fun nearby(line: Line, distance: Int = 33) = NearbyLine(line, "Nation", "Paris", "71673", distance)
+
+    private fun depWithRef(destination: String, inMinutes: Int, ref: String?, status: String? = null) =
+        dep(destination, inMinutes, status = status).copy(directionRef = ref)
+
+    private fun proximityModel(
+        vararg entries: ProximityEntry,
+        width: Float = 348f,
+        height: Float = 192f,
+        night: Boolean = true,
+        refreshing: Boolean = false,
+        hint: AutoHint? = null,
+        error: String? = null,
+        snapshot: Boolean = false,
+    ): WidgetModel {
+        val state = ProximityState(
+            fetchedAt = now - 60_000L,
+            attemptedAt = now,
+            entries = entries.toList(),
+            error = error,
+            dataAt = if (snapshot) now - 30_000L else null,
+            fresh = if (snapshot) true else null,
+        )
+        return WidgetModels.buildProximity(config(metro, allDirections), state, refreshing, width, height, now, night, hint)
+    }
+
+    private fun proximityEntry(line: Line, vararg departures: Departure, favorite: Boolean = false) =
+        ProximityEntry(nearby(line), NearbyReason.NEAREST, favorite, departures.toList())
+
+    @Test
+    fun rowsFollowTheHeightOfTheWidget() {
+        assertEquals(2, ProximityLayout.rows(348f, 192f))
+        assertEquals(3, ProximityLayout.rows(348f, 292f))
+        // Tailles réelles d'un lanceur, plus petites ou plus grandes que la maquette.
+        assertEquals(2, ProximityLayout.rows(320f, 150f))
+        assertEquals(3, ProximityLayout.rows(320f, 230f))
+        assertEquals(2, ProximityLayout.rows(400f, 210f))
+    }
+
+    @Test
+    fun rowsStayWithinLimits() {
+        assertEquals(1, ProximityLayout.rows(348f, 80f))
+        assertEquals(5, ProximityLayout.rows(348f, 900f))
+    }
+
+    @Test
+    fun directionsAreGroupedByTheSourceDirection() {
+        val passages = listOf(
+            depWithRef("Saint-Germain-en-Laye", 2, "Retour"),
+            depWithRef("Sucy - Bonneuil", 3, "Aller"),
+            depWithRef("Cergy le Haut", 5, "Retour"),
+            depWithRef("Boissy-Saint-Léger", 7, "Aller"),
+        ).map { WidgetContent.passage(it, now, "rail") }
+        val directions = WidgetContent.proximityDirections(passages)
+        assertEquals(listOf("Sucy - Bonneuil", "Saint-Germain-en-Laye"), directions.map { it.label })
+        assertEquals(listOf(7, 5), directions.map { it.next?.minutes })
+    }
+
+    private fun rerARow(vararg departures: Departure): ProximityRow =
+        proximityModel(proximityEntry(rer, *departures)).proximity.single()
+
+    @Test
+    fun eastBranchesOfTheRerAStayWithTheEastEvenWhenTheFeedSaysOtherwise() {
+        // Relevé réel à Nation : Chessy annoncé « Retour », comme les trains vers l'ouest.
+        val row = rerARow(
+            depWithRef("Marne-la-Vallée Chessy", 1, "Retour"),
+            depWithRef("Saint-Germain-en-Laye", 2, "Retour"),
+            depWithRef("Boissy-Saint-Léger", 4, "Aller"),
+            depWithRef("Cergy le Haut", 5, "Retour"),
+        )
+        assertEquals(listOf("Marne-la-Vallée Chessy", "Saint-Germain-en-Laye"), row.directions.map { it.label })
+        assertEquals(listOf(4, 5), row.directions.map { it.next?.minutes })
+    }
+
+    /** Les sens affichés à une gare du RER A, chaque sens avec ses destinations dans l'ordre. */
+    private fun rerAGroups(stop: String, vararg departures: Departure): List<List<String>> {
+        val passages = departures.map { WidgetContent.passage(it, now, "rail") }
+        return WidgetContent.proximityDirections(passages, rer.id, stop).map { direction ->
+            listOfNotNull(direction.first.destination, direction.next?.destination)
+        }
+    }
+
+    @Test
+    fun anUnusualTerminusAnnouncedAllerStaysWithTheEastInsteadOfMakingAThirdDirection() {
+        val groups = rerAGroups(
+            "Nation",
+            depWithRef("La Varenne - Chennevières", 1, "Aller"),
+            depWithRef("Boissy-Saint-Léger", 3, "Aller"),
+            depWithRef("Cergy le Haut", 5, "Retour"),
+        )
+        assertEquals(listOf(listOf("La Varenne - Chennevières", "Boissy-Saint-Léger"), listOf("Cergy le Haut")), groups)
+    }
+
+    @Test
+    fun anUnusualTerminusAnnouncedRetourStillGoesEastFromParis() {
+        // Le flux annonce « Retour » pour les trains Saint-Germain - Chessy, dans les deux sens.
+        val groups = rerAGroups(
+            "Nation",
+            depWithRef("Noisy - Champs", 1, "Retour"),
+            depWithRef("Cergy le Haut", 5, "Retour"),
+        )
+        assertEquals(listOf(listOf("Noisy - Champs"), listOf("Cergy le Haut")), groups)
+    }
+
+    @Test
+    fun aTerminusBehindTheStationIsTowardsTheWestWhateverTheFeedSays() {
+        val aller = rerAGroups(
+            "Sucy - Bonneuil",
+            depWithRef("La Varenne - Chennevières", 1, "Aller"),
+            depWithRef("Cergy le Haut", 5, "Retour"),
+        )
+        assertEquals(listOf(listOf("La Varenne - Chennevières", "Cergy le Haut")), aller)
+
+        val retour = rerAGroups(
+            "Bussy-Saint-Georges",
+            depWithRef("Torcy", 1, "Retour"),
+            depWithRef("Saint-Germain-en-Laye", 5, "Retour"),
+            depWithRef("Marne-la-Vallée Chessy", 7, "Retour"),
+        )
+        assertEquals(listOf(listOf("Marne-la-Vallée Chessy"), listOf("Torcy", "Saint-Germain-en-Laye")), retour)
+    }
+
+    @Test
+    fun theStopNameMayBeWrittenDifferentlyFromTheDestination() {
+        // « Marne-la-Vallée - Chessy » dans l'open data, « Marne-la-Vallée Chessy » dans le flux.
+        val groups = rerAGroups(
+            "Marne-la-Vallée - Chessy",
+            depWithRef("Torcy", 1, "Retour"),
+            depWithRef("Saint-Germain-en-Laye", 5, "Retour"),
+        )
+        assertEquals(listOf(listOf("Torcy", "Saint-Germain-en-Laye")), groups)
+    }
+
+    @Test
+    fun aTerminusInParisDependsOnTheSideOfTheStation() {
+        fun directionCount(stop: String) = rerAGroups(
+            stop,
+            depWithRef("Nation", 1, "Retour"),
+            depWithRef("Cergy le Haut", 5, "Retour"),
+        ).size
+        // Depuis l'ouest, un train vers Nation part à l'opposé de Cergy ; depuis l'est, dans le même sens.
+        assertEquals(2, directionCount("La Défense"))
+        assertEquals(2, directionCount("Saint-Germain-en-Laye"))
+        assertEquals(1, directionCount("Vincennes"))
+        assertEquals(1, directionCount("Lognes"))
+    }
+
+    @Test
+    fun vincennesIsReachedTowardsTheWestFromBothEastBranches() {
+        fun directionCount(stop: String) = rerAGroups(
+            stop,
+            depWithRef("Vincennes", 1, "Retour"),
+            depWithRef("Cergy le Haut", 5, "Retour"),
+        ).size
+        assertEquals(1, directionCount("Fontenay-sous-Bois"))
+        assertEquals(1, directionCount("Neuilly-Plaisance"))
+        assertEquals(2, directionCount("Auber"))
+    }
+
+    @Test
+    fun theFeedDirectionIsKeptForOtherLines() {
+        val rerB = Line("C01743", "RER B", "B", "rail", network = "RER", color = "5291CE", textColor = "FFFFFF")
+        val row = proximityModel(
+            proximityEntry(rerB, depWithRef("Torcy", 1, "Retour"), depWithRef("Mitry - Claye", 2, "Retour")),
+        ).proximity.single()
+        assertEquals(1, row.directions.size)
+    }
+
+    @Test
+    fun theNextTrainOfADirectionComesFirstWhateverItsDestination() {
+        // Le train à quai, puis 3 min vers une autre branche et 7 min vers la même destination.
+        val row = rerARow(
+            depWithRef("Saint-Germain-en-Laye", 0, "Retour").copy(atStop = true),
+            depWithRef("Cergy le Haut", 3, "Retour"),
+            depWithRef("Saint-Germain-en-Laye", 7, "Retour"),
+        )
+        val direction = row.directions.single()
+        assertEquals(WaitKind.AT_STOP, direction.first.kind)
+        assertEquals(3, direction.next?.minutes)
+    }
+
+    @Test
+    fun aTrainAtThePlatformGivesWayOnceItHasLeft() {
+        val row = rerARow(
+            depWithRef("Saint-Germain-en-Laye", -3, "Retour").copy(atStop = true),
+            depWithRef("Cergy le Haut", 3, "Retour"),
+            depWithRef("Saint-Germain-en-Laye", 7, "Retour"),
+        )
+        val direction = row.directions.single()
+        assertEquals("Cergy le Haut", direction.label)
+        assertEquals(3, direction.first.minutes)
+        assertEquals(7, direction.next?.minutes)
+    }
+
+    @Test
+    fun aTrainJustAtThePlatformStaysShown() {
+        val row = rerARow(
+            depWithRef("Saint-Germain-en-Laye", -1, "Retour").copy(atStop = true),
+            depWithRef("Cergy le Haut", 3, "Retour"),
+        )
+        assertEquals("Saint-Germain-en-Laye", row.directions.single().label)
+    }
+
+    @Test
+    fun withoutSourceDirectionTheDestinationsAreUsed() {
+        val passages = listOf(dep("Vincennes", 4), dep("La Défense (Grande Arche)", 2), dep("Vincennes", 9))
+            .map { WidgetContent.passage(it, now, "metro") }
+        val directions = WidgetContent.proximityDirections(passages)
+        assertEquals(listOf("La Défense", "Vincennes"), directions.map { it.label })
+        assertEquals(9, directions[1].next?.minutes)
+        assertNull(directions[0].next)
+    }
+
+    @Test
+    fun directionsDoNotSwapWhenTheNextPassageChanges() {
+        fun order(first: Int, second: Int) = WidgetContent.proximityDirections(
+            listOf(depWithRef("A", first, "Aller"), depWithRef("B", second, "Retour"))
+                .map { WidgetContent.passage(it, now, "metro") },
+        ).map { it.label }
+        assertEquals(order(2, 9), order(9, 2))
+    }
+
+    @Test
+    fun onlyTheTwoSoonestDirectionsAreKept() {
+        val passages = listOf(dep("C", 9), dep("B", 2), dep("A", 4)).map { WidgetContent.passage(it, now, "bus") }
+        assertEquals(listOf("A", "B"), WidgetContent.proximityDirections(passages).map { it.label })
+    }
+
+    @Test
+    fun aCancelledPassageIsShownButNotAsTheNextOne() {
+        val passages = listOf(dep("A", 2), dep("A", 5, status = "cancelled"), dep("A", 9))
+            .map { WidgetContent.passage(it, now, "bus") }
+        assertEquals(9, WidgetContent.proximityDirections(passages).single().next?.minutes)
+    }
+
+    @Test
+    fun noPassageMeansNoDirection() {
+        assertTrue(WidgetContent.proximityDirections(emptyList()).isEmpty())
+    }
+
+    @Test
+    fun aRowDescribesItsLineStopAndDistance() {
+        val row = proximityModel(proximityEntry(metro, dep("La Défense", 2))).proximity.single()
+        assertEquals("Nation · 33 m", row.place)
+        assertEquals("1", row.badge.label)
+        assertEquals(BadgeShape.CIRCLE, row.badge.shape)
+        assertEquals(Palettes.lineColors(metro).first, row.badgeBg)
+    }
+
+    @Test
+    fun theWidgetKeepsAsManyLinesAsItsHeightAllows() {
+        val entries = listOf(metro, rer, tram, transilien).map { proximityEntry(it, dep("A", 3)) }.toTypedArray()
+        assertEquals(2, proximityModel(*entries).proximity.size)
+        assertEquals(3, proximityModel(*entries, height = 292f).proximity.size)
+    }
+
+    @Test
+    fun aFavoriteWithoutPassageIsShownWithoutDirection() {
+        val rows = proximityModel(proximityEntry(metro, favorite = true), proximityEntry(rer)).proximity
+        assertEquals(1, rows.size)
+        assertTrue(rows.single().directions.isEmpty())
+    }
+
+    @Test
+    fun theColorFollowsTheSystemTheme() {
+        val entry = proximityEntry(metro, dep("A", 3))
+        val dark = proximityModel(entry, night = true).palette
+        val light = proximityModel(entry, night = false).palette
+        assertFalse(dark.isLine)
+        assertFalse(light.isLine)
+        assertTrue(dark.background != light.background)
+    }
+
+    @Test
+    fun proximityNotices() {
+        fun build(state: ProximityState?, config: WidgetConfig? = config(metro, allDirections)) =
+            WidgetModels.buildProximity(config, state, false, 348f, 192f, now, true)
+        assertEquals(NoticeKind.NOT_CONFIGURED, build(null, null).notice?.kind)
+        assertEquals(NoticeKind.LOADING, build(null).notice?.kind)
+        assertEquals(NoticeKind.NO_DEPARTURE, build(ProximityState(now, now, emptyList())).notice?.kind)
+        assertEquals(NoticeKind.ERROR, build(ProximityState(now, now, emptyList(), error = "Panne")).notice?.kind)
+    }
+
+    @Test
+    fun anErrorWithLinesIsStaleNotANotice() {
+        val result = proximityModel(proximityEntry(metro, dep("A", 3)), error = "Panne")
+        assertNull(result.notice)
+        assertTrue(result.stale)
+    }
+
+    @Test
+    fun theHintAndTheSourceShareTheHeader() {
+        val entry = proximityEntry(metro, dep("A", 3))
+        assertEquals("Tracéo", proximityModel(entry, snapshot = true).sourceLabel)
+        val hinted = proximityModel(entry, snapshot = true, hint = AutoHint("+3 lignes", "+3"))
+        assertEquals("+3 lignes", hinted.timeLabel)
+        assertNull(hinted.sourceLabel)
+        assertEquals("…", proximityModel(entry, refreshing = true).timeLabel)
+    }
+
+    @Test
+    fun screenReadersHearEveryLine() {
+        val result = proximityModel(
+            proximityEntry(metro, depWithRef("La Défense", 2, "Aller"), depWithRef("La Défense", 6, "Aller")),
+            proximityEntry(rer, favorite = true),
+        )
+        assertEquals(
+            "À proximité. Ligne 1, Nation · 33 m. Vers La Défense : 2 minutes, puis 6 minutes. " +
+                "Ligne A, Nation · 33 m. Aucun passage.",
+            WidgetContent.describe(result),
+        )
     }
 
     // --- Mode automatique ------------------------------------------------------------------------

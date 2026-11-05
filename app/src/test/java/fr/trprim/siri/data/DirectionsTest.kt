@@ -2,6 +2,7 @@ package fr.trprim.siri.data
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -146,6 +147,51 @@ class DirectionsTest {
         assertTrue(kept("Esplanade de la Défense", "La Défense"))
         assertTrue(kept("Gare (Nord) Sud", "Gare"))
         assertTrue(kept("La Défense", ""))
+    }
+
+    private fun rail(line: String, destination: String, ref: String?) =
+        dep("s", destination, 2).copy(lineRef = line, directionRef = ref)
+
+    @Test
+    fun aTrainAnnouncedElsewhereButEndingAtTheBranchEndIsAnArrival() {
+        // Relevé réel : NANI22, annoncé vers Sucy, passe à Sucy à 17 h 05 puis à Boissy à 17 h 11.
+        val deps = listOf(
+            rail("C01742", "Sucy - Bonneuil", "Aller"),
+            rail("C01742", "Boissy-Saint-Léger", "Aller"),
+            rail("C01742", "Cergy le Haut", "Retour"),
+        )
+        assertEquals(listOf("Cergy le Haut"), Directions.withoutTerminusArrivals(deps, "Boissy-Saint-Léger").map { it.destination })
+        assertEquals(
+            listOf("Sucy - Bonneuil", "Boissy-Saint-Léger", "Cergy le Haut"),
+            Directions.withoutTerminusArrivals(deps, "Nation").map { it.destination },
+        )
+    }
+
+    @Test
+    fun theSameHoldsAtRobinsonOnTheRerB() {
+        val deps = listOf(rail("line:IDFM:C01743", "Orsay-Ville", "Aller"), rail("line:IDFM:C01743", "Mitry - Claye", "Retour"))
+        assertEquals(listOf("Mitry - Claye"), Directions.withoutTerminusArrivals(deps, "Robinson").map { it.destination })
+    }
+
+    @Test
+    fun aBranchEndOnlyConcernsItsOwnLineAndAKnownDirection() {
+        // Des bus desservent aussi un arrêt « Robinson », et leur sens « Aller » n'y est pas une arrivée.
+        assertEquals(1, Directions.withoutTerminusArrivals(listOf(rail("C01000", "Clamart", "Aller")), "Robinson").size)
+        assertEquals(1, Directions.withoutTerminusArrivals(listOf(rail("C01742", "Sucy - Bonneuil", null)), "Boissy-Saint-Léger").size)
+    }
+
+    @Test
+    fun realDirectionOnlyChangesTheRerA() {
+        assertEquals("Retour", Directions.realDirection("C01743", "Massy-Palaiseau", "Retour", "Nation"))
+        assertNull(Directions.realDirection("C01743", "Massy-Palaiseau", null, "Nation"))
+    }
+
+    @Test
+    fun theWestBranchesOfTheRerAKeepTheFeedDirection() {
+        fun real(destination: String, ref: String?, stop: String) = Directions.realDirection("C01742", destination, ref, stop)
+        assertEquals(real("Cergy le Haut", "Retour", "Nation"), real("Saint-Germain-en-Laye", "Retour", "Nation"))
+        assertEquals(real("Boissy-Saint-Léger", "Aller", "Nation"), real("Poissy", "Aller", "Nation"))
+        assertNotEquals(real("Cergy le Haut", "Retour", "Nation"), real("Marne-la-Vallée Chessy", "Retour", "Nation"))
     }
 
     @Test

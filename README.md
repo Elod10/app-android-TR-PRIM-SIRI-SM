@@ -41,7 +41,7 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
     (« Vers Porte de Clignancourt »…), ou « Tous les sens ». Plusieurs sens/destinations peuvent être
     cochés (utile pour les branches du RER), sauf sur les widgets qui n'affichent qu'un sens : Pastille,
     Un sens, Grand chiffre, Frise et Train et voie.
-- **Dix widgets au choix**, depuis la liste des widgets du lanceur ou l'application, tous
+- **Onze widgets au choix**, depuis la liste des widgets du lanceur ou l'application, tous
   redimensionnables :
 
   | Widget | Taille de départ | Contenu |
@@ -56,6 +56,7 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
   | Deux sens avec frise | 4×2 | Les deux sens côte à côte, avec leur frise |
   | Liste des départs | 4×2 | Mission, voie et heure ; s'allonge pour afficher plus de départs |
   | Automatique | 4×2 | Choisit l'un de ces formats selon la taille du widget et le sens suivi |
+  | À proximité | 4×2 | Les lignes près de vous, avec le prochain passage et le suivant dans les deux sens ; s'allonge pour afficher plus de lignes |
 
   Le temps d'attente indique « 3 min », « Imminent », « À quai » ou « Supprimé » ; les retards et
   les échecs d'actualisation sont signalés en couleur. La liste affiche aussi l'heure, la voie (avec
@@ -66,7 +67,12 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
   que l'heure, et la mention reste dans sa description pour les lecteurs d'écran.
 - **Couleur du widget** : couleur de la ligne par défaut, ou au choix automatique (couleur de la ligne
   pour les formats à grand chiffre, fond sombre pour les autres), sombre ou clair. La liste reste en
-  sombre ou en clair et démarre en sombre. Un widget existant garde sa couleur.
+  sombre ou en clair et démarre en sombre. Un widget existant garde sa couleur. Le widget À proximité suit
+  le thème clair ou sombre du système.
+- **Widget À proximité** : toujours automatique, il n'y a rien à configurer en dehors de la permission. Il
+  garde le classement du mode automatique et les mêmes gestes : un toucher relit la position, deux touchers
+  en moins de 1,5 seconde ouvrent la liste complète. Deux lignes tiennent en 4×2, trois en 4×3. Une ligne
+  sans passage dans l'heure laisse sa place à la suivante, sauf si elle est favorite ou choisie à cet endroit.
 - **Actualisation** : toucher le widget l'actualise immédiatement ; actualisation automatique
   configurable (manuelle, 1, 2, 5, 10, 15 ou 30 min) **uniquement écran allumé** (alarme exacte mais
   non réveillante : aucune requête quand le téléphone est en veille). Sans clé, le choix de 1 min n'est
@@ -113,7 +119,7 @@ ajoutée et garde son sens.
   envoyée à Tracéo.
 - **Position** (mode automatique uniquement) : elle est lue seulement quand on touche le widget, sans la
   permission « Toujours autoriser ». Les arrêts proches sont cherchés dans un fichier local : la position
-  n'est envoyée à personne. Seuls la ligne et l'arrêt retenus partent vers la source de passages, comme
+  n'est envoyée à personne. Seuls les lignes et les arrêts retenus partent vers la source de passages, comme
   pour un widget ordinaire. La dernière position et les lieux où une ligne a été choisie restent sur le
   téléphone.
 
@@ -137,6 +143,10 @@ ajoutée et garde son sens.
 - Les arrêts de même nom dans la même commune (un quai par sens) sont regroupés ; le choix du sens
   détermine le(s) quai(s) interrogé(s) et, pour les zones d'arrêt ferroviaires, les directions
   (`DirectionName`, sinon `DestinationName`) retenues.
+- **Requêtes du widget À proximité** : les lignes sont interrogées dans l'ordre du classement, jusqu'à remplir
+  le widget et au plus 8 par actualisation. Sans clé, cela fait une requête par ligne interrogée, le cas
+  échéant précédée du chargement de ses arrêts chez Tracéo. Avec une clé, une seule requête par zone d'arrêt
+  suffit, car PRIM renvoie toutes les lignes de la zone.
 - **Index local des arrêts** : le téléphone télécharge les colonnes utiles de `arrets-lignes`, `arrets`,
   `zones-d-arrets` et `referentiel-des-lignes` (environ 3 Mo compressés, sans quota PRIM ni appel à Tracéo),
   puis les compile en un fichier d'environ 2 Mo. Il est renouvelé chaque semaine en Wi-Fi, chaque mois sur
