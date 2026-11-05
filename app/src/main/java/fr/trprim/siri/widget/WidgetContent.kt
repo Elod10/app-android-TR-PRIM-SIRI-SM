@@ -261,10 +261,10 @@ object WidgetContent {
      * branches confondues. Sans sens indiqué par la source, on regroupe par destination. L'ordre ne
      * dépend pas des horaires, pour que les sens ne s'échangent pas d'une actualisation à l'autre.
      */
-    fun proximityDirections(passages: List<Passage>, lineId: String = ""): List<ProximityDirection> {
+    fun proximityDirections(passages: List<Passage>, lineId: String = "", stopName: String = ""): List<ProximityDirection> {
         val byRef = passages.isNotEmpty() && passages.all { !it.directionRef.isNullOrBlank() }
         fun keyOf(passage: Passage) = normalizeLabel(
-            if (byRef) Directions.realDirection(lineId, passage.destination, passage.directionRef) else passage.directionKey,
+            if (byRef) Directions.realDirection(lineId, passage.destination, passage.directionRef, stopName) else passage.directionKey,
         )
         return passages.groupBy(::keyOf).values
             .sortedBy { group -> group.firstOrNull { it.kind != WaitKind.CANCELLED }?.railMinutes ?: Int.MAX_VALUE }
@@ -565,7 +565,7 @@ object WidgetModels {
             badgeBg = background,
             badgeFg = foreground,
             place = "${entry.nearby.stopName} · ${formatDistance(entry.nearby.distanceM)}",
-            directions = WidgetContent.proximityDirections(passages, line.id),
+            directions = WidgetContent.proximityDirections(passages, line.id, entry.nearby.stopName),
         )
     }
 

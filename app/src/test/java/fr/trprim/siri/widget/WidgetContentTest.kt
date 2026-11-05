@@ -640,6 +640,91 @@ class WidgetContentTest {
         assertEquals(listOf(4, 5), row.directions.map { it.next?.minutes })
     }
 
+    /** Les sens affichés à une gare du RER A, chaque sens avec ses destinations dans l'ordre. */
+    private fun rerAGroups(stop: String, vararg departures: Departure): List<List<String>> {
+        val passages = departures.map { WidgetContent.passage(it, now, "rail") }
+        return WidgetContent.proximityDirections(passages, rer.id, stop).map { direction ->
+            listOfNotNull(direction.first.destination, direction.next?.destination)
+        }
+    }
+
+    @Test
+    fun anUnusualTerminusAnnouncedAllerStaysWithTheEastInsteadOfMakingAThirdDirection() {
+        val groups = rerAGroups(
+            "Nation",
+            depWithRef("La Varenne - Chennevières", 1, "Aller"),
+            depWithRef("Boissy-Saint-Léger", 3, "Aller"),
+            depWithRef("Cergy le Haut", 5, "Retour"),
+        )
+        assertEquals(listOf(listOf("La Varenne - Chennevières", "Boissy-Saint-Léger"), listOf("Cergy le Haut")), groups)
+    }
+
+    @Test
+    fun anUnusualTerminusAnnouncedRetourStillGoesEastFromParis() {
+        // Le flux annonce « Retour » pour les trains Saint-Germain - Chessy, dans les deux sens.
+        val groups = rerAGroups(
+            "Nation",
+            depWithRef("Noisy - Champs", 1, "Retour"),
+            depWithRef("Cergy le Haut", 5, "Retour"),
+        )
+        assertEquals(listOf(listOf("Noisy - Champs"), listOf("Cergy le Haut")), groups)
+    }
+
+    @Test
+    fun aTerminusBehindTheStationIsTowardsTheWestWhateverTheFeedSays() {
+        val aller = rerAGroups(
+            "Sucy - Bonneuil",
+            depWithRef("La Varenne - Chennevières", 1, "Aller"),
+            depWithRef("Cergy le Haut", 5, "Retour"),
+        )
+        assertEquals(listOf(listOf("La Varenne - Chennevières", "Cergy le Haut")), aller)
+
+        val retour = rerAGroups(
+            "Bussy-Saint-Georges",
+            depWithRef("Torcy", 1, "Retour"),
+            depWithRef("Saint-Germain-en-Laye", 5, "Retour"),
+            depWithRef("Marne-la-Vallée Chessy", 7, "Retour"),
+        )
+        assertEquals(listOf(listOf("Marne-la-Vallée Chessy"), listOf("Torcy", "Saint-Germain-en-Laye")), retour)
+    }
+
+    @Test
+    fun theStopNameMayBeWrittenDifferentlyFromTheDestination() {
+        // « Marne-la-Vallée - Chessy » dans l'open data, « Marne-la-Vallée Chessy » dans le flux.
+        val groups = rerAGroups(
+            "Marne-la-Vallée - Chessy",
+            depWithRef("Torcy", 1, "Retour"),
+            depWithRef("Saint-Germain-en-Laye", 5, "Retour"),
+        )
+        assertEquals(listOf(listOf("Torcy", "Saint-Germain-en-Laye")), groups)
+    }
+
+    @Test
+    fun aTerminusInParisDependsOnTheSideOfTheStation() {
+        fun directionCount(stop: String) = rerAGroups(
+            stop,
+            depWithRef("Nation", 1, "Retour"),
+            depWithRef("Cergy le Haut", 5, "Retour"),
+        ).size
+        // Depuis l'ouest, un train vers Nation part à l'opposé de Cergy ; depuis l'est, dans le même sens.
+        assertEquals(2, directionCount("La Défense"))
+        assertEquals(2, directionCount("Saint-Germain-en-Laye"))
+        assertEquals(1, directionCount("Vincennes"))
+        assertEquals(1, directionCount("Lognes"))
+    }
+
+    @Test
+    fun vincennesIsReachedTowardsTheWestFromBothEastBranches() {
+        fun directionCount(stop: String) = rerAGroups(
+            stop,
+            depWithRef("Vincennes", 1, "Retour"),
+            depWithRef("Cergy le Haut", 5, "Retour"),
+        ).size
+        assertEquals(1, directionCount("Fontenay-sous-Bois"))
+        assertEquals(1, directionCount("Neuilly-Plaisance"))
+        assertEquals(2, directionCount("Auber"))
+    }
+
     @Test
     fun theFeedDirectionIsKeptForOtherLines() {
         val rerB = Line("C01743", "RER B", "B", "rail", network = "RER", color = "5291CE", textColor = "FFFFFF")
