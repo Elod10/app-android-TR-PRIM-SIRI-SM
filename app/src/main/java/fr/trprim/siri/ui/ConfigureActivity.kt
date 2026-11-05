@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.text.method.LinkMovementMethod
 import android.view.MenuItem
 import android.view.View
 import android.view.inputmethod.InputMethodManager
@@ -18,10 +19,11 @@ import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import fr.trprim.siri.R
-import fr.trprim.siri.data.Departure
+import fr.trprim.siri.data.DataSources
 import fr.trprim.siri.data.DirectionOption
 import fr.trprim.siri.data.Directions
 import fr.trprim.siri.data.Line
+import fr.trprim.siri.data.PassageRoute
 import fr.trprim.siri.data.Prefs
 import fr.trprim.siri.data.PrimClient
 import fr.trprim.siri.data.PrimException
@@ -156,8 +158,9 @@ class ConfigureActivity : Activity() {
         save.setOnClickListener { saveConfig() }
         findViewById<Button>(R.id.key_portal).setOnClickListener { UiText.openUrl(this, UiText.PRIM_PORTAL_URL) }
         keyContinue.setOnClickListener { submitKey() }
+        findViewById<TextView>(R.id.key_help).movementMethod = LinkMovementMethod.getInstance()
 
-        goTo(if (prefs.hasApiKey) Step.MODE else Step.KEY)
+        goTo(Step.MODE)
     }
 
     override fun onDestroy() {
@@ -199,8 +202,8 @@ class ConfigureActivity : Activity() {
         when (step) {
             Step.DIRECTION -> goTo(if (viaShortcut) Step.MODE else Step.STOP)
             Step.STOP -> goTo(Step.LINE)
-            Step.LINE -> goTo(Step.MODE)
-            Step.MODE, Step.KEY -> super.onBackPressed()
+            Step.LINE, Step.KEY -> goTo(Step.MODE)
+            Step.MODE -> super.onBackPressed()
         }
     }
 
@@ -231,7 +234,14 @@ class ConfigureActivity : Activity() {
         breadcrumb.visibility = if (crumbs.isEmpty()) View.GONE else View.VISIBLE
 
         search.visibility = if (step == Step.LINE || step == Step.STOP) View.VISIBLE else View.GONE
-        search.hint = getString(if (step == Step.LINE) R.string.search_line_hint else R.string.search_stop_hint)
+        search.hint = getString(
+            when {
+                step == Step.LINE -> R.string.search_line_hint
+                prefs.hasApiKey -> R.string.search_stop_hint
+                // Les arrêts de Tracéo n'ont pas de commune.
+                else -> R.string.search_stop_hint_no_town
+            },
+        )
         stepHelp.visibility = View.GONE
         bottomBar.visibility = if (step == Step.DIRECTION) View.VISIBLE else View.GONE
         keyPanel.visibility = if (step == Step.KEY) View.VISIBLE else View.GONE
@@ -265,7 +275,7 @@ class ConfigureActivity : Activity() {
         imm.hideSoftInputFromWindow(search.windowToken, 0)
     }
 
-    // --- Étape 0 : clé API ------------------------------------------------------------------
+    // --- Clé API facultative, proposée sous la liste des modes ---------------------------------
 
     private fun showKeyPanel() {
         list.visibility = View.GONE
@@ -278,7 +288,7 @@ class ConfigureActivity : Activity() {
     private fun submitKey() {
         val key = keyInput.text.toString().trim()
         if (key.isEmpty()) {
-            showKeyStatus(getString(R.string.main_key_empty), error = true)
+            goTo(Step.MODE)
             return
         }
         prefs.apiKey = key
@@ -299,6 +309,7 @@ class ConfigureActivity : Activity() {
             } else {
                 if (error != null) Toast.makeText(this@ConfigureActivity, error.message, Toast.LENGTH_LONG).show()
                 WidgetUpdater.renderAll(this@ConfigureActivity)
+                WidgetUpdater.requestRefresh(this@ConfigureActivity)
                 goTo(Step.MODE)
             }
         }
@@ -313,8 +324,10 @@ class ConfigureActivity : Activity() {
     // --- Étape 1 : mode ---------------------------------------------------------------------
 
     private fun showModes() {
+        val hasKey = prefs.hasApiKey
         val items = ArrayList<RowItem>()
-        existing?.let { cfg ->
+        // Un arrêt choisi avec une clé retirée depuis n'existe pas chez Tracéo : impossible de le garder.
+        existing?.takeIf { DataSources.route(it.stop.stopIds, hasKey) != PassageRoute.RECONFIGURE }?.let { cfg ->
             items += RowItem(
                 title = getString(R.string.keep_current),
                 subtitle = getString(R.string.keep_current_sub, UiText.lineTitle(cfg.line), cfg.stop.name),
@@ -322,8 +335,11 @@ class ConfigureActivity : Activity() {
                 payload = cfg,
             )
         }
-        TransportMode.entries.forEach { m ->
+        DataSources.modes(hasKey).forEach { m ->
             items += RowItem(m.label, UiText.modeSubtitle(m), badge = UiText.modeBadge(m), payload = m)
+        }
+        if (!hasKey) {
+            items += RowItem(getString(R.string.key_optional_row), getString(R.string.key_optional_row_sub), payload = Step.KEY)
         }
         adapter.setItems(items)
         showList()
@@ -346,6 +362,7 @@ class ConfigureActivity : Activity() {
                     viaShortcut = false
                     goTo(Step.LINE)
                 }
+                is Step -> goTo(payload)
             }
             Step.LINE -> (item.payload as? Line)?.let {
                 line = it
@@ -424,15 +441,19 @@ class ConfigureActivity : Activity() {
         showLoading(getString(R.string.loading_directions))
         loadJob = scope.launch {
             val apiKey = prefs.apiKey
-            val results: List<Pair<String, Result<List<Departure>>>> = if (apiKey.isBlank()) {
-                s.stopIds.map { it to Result.failure(PrimException(PrimException.Kind.NO_KEY, getString(R.string.key_required))) }
-            } else {
-                val client = PrimClient(apiKey, formats = prefs.primFormats)
-                withContext(Dispatchers.IO) {
-                    s.stopIds.map { id -> async { id to runCatching { client.departures(id, l.id) } } }.awaitAll()
-                }
+            val source = DataSources.passageSource(apiKey, prefs.primFormats)
+            val results = withContext(Dispatchers.IO) {
+                s.stopIds.map { id -> async { id to runCatching { source.passages(id, l.id) } } }.awaitAll()
             }
-            directionOptions = Directions.buildOptions(s, results.associate { (id, r) -> id to r.getOrNull() })
+            directionOptions = Directions.buildOptions(
+                s,
+                results.associate { (id, result) ->
+                    // Tracéo inclut les arrivées au terminus : elles ne sont pas un sens à proposer.
+                    id to result.getOrNull()?.departures?.let { departures ->
+                        if (apiKey.isBlank()) Directions.withoutTerminusArrivals(departures, s.name) else departures
+                    }
+                },
+            )
 
             val allItem = RowItem(
                 title = getString(R.string.direction_all),

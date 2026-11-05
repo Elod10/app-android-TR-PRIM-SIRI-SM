@@ -1,8 +1,11 @@
 package fr.trprim.siri.widget
 
+import fr.trprim.siri.data.DataSources
 import fr.trprim.siri.data.Departure
 import fr.trprim.siri.data.Directions
 import fr.trprim.siri.data.Line
+import fr.trprim.siri.data.PassageRoute
+import fr.trprim.siri.data.TraceoClient
 import fr.trprim.siri.data.WidgetConfig
 import fr.trprim.siri.data.WidgetState
 import fr.trprim.siri.data.WidgetTheme
@@ -133,7 +136,7 @@ enum class BadgeShape { CIRCLE, SQUARE, BUS, TRAM }
 
 data class LineBadge(val label: String, val shape: BadgeShape)
 
-enum class NoticeKind { NOT_CONFIGURED, MISSING_KEY, LOADING, NO_DEPARTURE, ERROR }
+enum class NoticeKind { NOT_CONFIGURED, RECONFIGURE, LOADING, NO_DEPARTURE, ERROR }
 
 /** Message affiché à la place des passages. */
 data class Notice(val kind: NoticeKind, val detail: String? = null)
@@ -146,12 +149,18 @@ data class WidgetModel(
     val stopName: String,
     val passages: List<Passage>,
     val groups: List<DirectionGroup>,
-    /** Heure de la dernière actualisation, ou « … » pendant une actualisation. */
+    /** Heure du relevé ou, en direct, de la dernière actualisation ; « … » pendant une actualisation. */
     val timeLabel: String,
     /** Vrai si les passages affichés datent d'avant un échec d'actualisation. */
     val stale: Boolean,
     val refreshing: Boolean,
     val notice: Notice?,
+    /** Source à citer à côté de l'heure, quand les passages viennent d'un relevé et non du direct. */
+    val sourceLabel: String? = null,
+    /** Version complète de [sourceLabel], affichée quand la place le permet. */
+    val sourceDetail: String? = null,
+    /** Vrai si le relevé dépasse le délai habituel de la source. */
+    val oldSnapshot: Boolean = false,
 )
 
 object WidgetContent {
@@ -318,7 +327,14 @@ object WidgetContent {
             "Vers ${group.label} : ${group.first.spokenWait}$delay$then."
         }
         val stale = if (model.stale) " Actualisation impossible, données de ${model.timeLabel}." else ""
-        return "$header. $body$stale".trim()
+        return "$header. $body$stale${describeSource(model)}".trim()
+    }
+
+    private fun describeSource(model: WidgetModel): String {
+        val source = model.sourceDetail ?: return ""
+        val time = model.timeLabel.takeIf { it.isNotEmpty() }?.let { " de $it" }.orEmpty()
+        val old = if (model.oldSnapshot) ", ancien" else ""
+        return " Données $source, relevé$time$old."
     }
 }
 
@@ -344,13 +360,15 @@ object WidgetModels {
         val passages = upcoming.map { WidgetContent.passage(it, now, line?.mode.orEmpty()) }
         val notice = when {
             config == null -> Notice(NoticeKind.NOT_CONFIGURED)
-            !hasApiKey -> Notice(NoticeKind.MISSING_KEY)
+            DataSources.route(config.stop.stopIds, hasApiKey) == PassageRoute.RECONFIGURE -> Notice(NoticeKind.RECONFIGURE)
             passages.isNotEmpty() -> null
             state == null -> Notice(NoticeKind.LOADING)
             state.error != null -> Notice(NoticeKind.ERROR, state.error)
             else -> Notice(NoticeKind.NO_DEPARTURE)
         }
-        val fetchedAt = state?.fetchedAt ?: 0L
+        // Un relevé se date à l'heure de la source, pas à celle du téléphone.
+        val snapshot = state?.takeIf { it.isSnapshot }
+        val shownAt = if (snapshot != null) snapshot.dataAt ?: 0L else state?.fetchedAt ?: 0L
         return WidgetModel(
             format = format,
             palette = palette,
@@ -360,12 +378,15 @@ object WidgetModels {
             groups = WidgetContent.directionGroups(passages),
             timeLabel = when {
                 refreshing -> "…"
-                fetchedAt > 0L -> DepartureFormat.clock(fetchedAt)
+                shownAt > 0L -> DepartureFormat.clock(shownAt)
                 else -> ""
             },
             stale = state?.error != null && passages.isNotEmpty(),
             refreshing = refreshing,
             notice = notice,
+            sourceLabel = if (snapshot != null && !refreshing) TraceoClient.SOURCE_NAME else null,
+            sourceDetail = if (snapshot != null && !refreshing) TraceoClient.SOURCE_DETAIL else null,
+            oldSnapshot = snapshot?.fresh == false && !refreshing,
         )
     }
 

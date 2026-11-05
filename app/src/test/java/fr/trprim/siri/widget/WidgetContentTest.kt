@@ -382,10 +382,121 @@ class WidgetContentTest {
     @Test
     fun noticesWhenThereIsNothingToShow() {
         assertEquals(NoticeKind.NOT_CONFIGURED, model(null, null).notice?.kind)
-        assertEquals(NoticeKind.MISSING_KEY, model(config(metro, allDirections), state(dep("A", 2)), hasApiKey = false).notice?.kind)
+        assertEquals(NoticeKind.RECONFIGURE, model(config(metro, allDirections), state(dep("A", 2)), hasApiKey = false).notice?.kind)
         assertEquals(NoticeKind.LOADING, model(config(metro, allDirections), null).notice?.kind)
         assertEquals(NoticeKind.NO_DEPARTURE, model(config(metro, allDirections), state()).notice?.kind)
         assertEquals(NoticeKind.ERROR, model(config(metro, allDirections), state(error = "Panne")).notice?.kind)
+    }
+
+    // --- Source des données -------------------------------------------------------------------
+
+    private val traceoStop = "stop_area:IDFM:71673"
+
+    private fun traceoConfig() = WidgetConfig(
+        widgetId = 1,
+        mode = TransportMode.METRO,
+        line = metro,
+        stop = Stop("Bastille", null, listOf(traceoStop)),
+        directions = mapOf(traceoStop to emptySet()),
+        directionLabel = "",
+    )
+
+    private fun snapshotState(
+        dataAt: Long? = now - 5 * 60_000L,
+        fresh: Boolean = true,
+        error: String? = null,
+    ) = WidgetState(
+        fetchedAt = now - 60_000L,
+        attemptedAt = now,
+        departures = listOf(dep("La Défense (Grande Arche)", 5, stopId = traceoStop)),
+        error = error,
+        dataAt = dataAt,
+        fresh = fresh,
+    )
+
+    @Test
+    fun fourWidgetCases() {
+        // Zone d'arrêt, sans clé puis avec clé : les passages s'affichent.
+        assertNull(model(traceoConfig(), snapshotState(), hasApiKey = false).notice)
+        assertNull(model(traceoConfig(), state(dep("A", 2, stopId = traceoStop)), hasApiKey = true).notice)
+        // Arrêt du référentiel, avec clé : comme avant.
+        assertNull(model(config(metro, allDirections), state(dep("A", 2)), hasApiKey = true).notice)
+        // Arrêt du référentiel, sans clé : à reconfigurer, même avec des passages en mémoire.
+        assertEquals(
+            NoticeKind.RECONFIGURE,
+            model(config(metro, allDirections), state(dep("A", 2)), hasApiKey = false).notice?.kind,
+        )
+    }
+
+    @Test
+    fun snapshotShowsTheTimeOfTheReadingAndItsSource() {
+        val state = snapshotState()
+        val result = model(traceoConfig(), state, hasApiKey = false)
+        assertEquals(DepartureFormat.clock(state.dataAt!!), result.timeLabel)
+        assertEquals("Tracéo", result.sourceLabel)
+        assertEquals("PRIM via Tracéo", result.sourceDetail)
+        assertFalse(result.oldSnapshot)
+        assertFalse(result.stale)
+    }
+
+    @Test
+    fun oldSnapshotIsFlaggedWithoutBeingAFailure() {
+        val result = model(traceoConfig(), snapshotState(fresh = false), hasApiKey = false)
+        assertTrue(result.oldSnapshot)
+        assertFalse(result.stale)
+        assertNull(result.notice)
+    }
+
+    @Test
+    fun failedRefreshOnSnapshotKeepsItsDateAndFlagsIt() {
+        val state = snapshotState(error = "Erreur réseau")
+        val result = model(traceoConfig(), state, hasApiKey = false)
+        assertTrue(result.stale)
+        assertEquals(DepartureFormat.clock(state.dataAt!!), result.timeLabel)
+        assertEquals("Tracéo", result.sourceLabel)
+    }
+
+    @Test
+    fun snapshotWithoutDateShowsNoTime() {
+        val result = model(traceoConfig(), snapshotState(dataAt = null), hasApiKey = false)
+        assertEquals("", result.timeLabel)
+        assertEquals("Tracéo", result.sourceLabel)
+    }
+
+    @Test
+    fun liveDataShowsThePhoneTimeWithoutSource() {
+        val stateOfPrim = state(dep("A", 5))
+        val result = model(config(metro, allDirections), stateOfPrim)
+        assertEquals(DepartureFormat.clock(stateOfPrim.fetchedAt), result.timeLabel)
+        assertNull(result.sourceLabel)
+        assertNull(result.sourceDetail)
+        assertFalse(result.oldSnapshot)
+    }
+
+    @Test
+    fun refreshingHidesTheSourceUntilTheNewReading() {
+        val result = WidgetModels.build(
+            traceoConfig(), snapshotState(fresh = false), hasApiKey = false, refreshing = true,
+            widthDp = 348f, heightDp = 192f, now = now,
+        )
+        assertEquals("…", result.timeLabel)
+        assertNull(result.sourceLabel)
+        assertNull(result.sourceDetail)
+        assertFalse(result.oldSnapshot)
+    }
+
+    @Test
+    fun screenReadersHearTheReading() {
+        val state = snapshotState()
+        val time = DepartureFormat.clock(state.dataAt!!)
+        assertEquals(
+            "Ligne 1, Bastille. Vers La Défense : 5 minutes. Données PRIM via Tracéo, relevé de $time.",
+            WidgetContent.describe(model(traceoConfig(), state, hasApiKey = false)),
+        )
+        assertEquals(
+            "Ligne 1, Bastille. Vers La Défense : 5 minutes. Données PRIM via Tracéo, relevé de $time, ancien.",
+            WidgetContent.describe(model(traceoConfig(), snapshotState(fresh = false), hasApiKey = false)),
+        )
     }
 
     @Test

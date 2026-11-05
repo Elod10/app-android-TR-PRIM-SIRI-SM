@@ -67,6 +67,9 @@ class PrimClientTest {
         val (status, body) = when {
             forcedStatus != null -> forcedStatus!! to """{"message":"error"}"""
             headers["apikey"] != "secret" -> 401 to """{"message":"Invalid authentication credentials"}"""
+            query.contains("StopArea:SP:71348:") -> 200 to
+                """{"Siri":{"ServiceDelivery":{"StopMonitoringDelivery":[{"Status":"true","MonitoredStopVisit":[
+                    ${visit("C01371", "La Défense (Grande Arche)")}]}]}}}"""
             query.contains("StopArea:SP:1:") -> 400 to siriError("La requête contient des identifiants qui sont inconnus")
             query.contains("StopPoint:Q:1:") && query.contains("LineRef") ->
                 400 to siriError("Le couple MonitoringRef/LineRef n'existe pas")
@@ -89,6 +92,30 @@ class PrimClientTest {
 
     private fun client(key: String = "secret", formats: PrimClient.FormatCache = PrimClient.FormatCache.InMemory()) =
         PrimClient(key, "http://127.0.0.1:${server.localPort}/stop-monitoring", formats)
+
+    @Test
+    fun traceoStopAreaIsAlwaysAZone() {
+        assertEquals(listOf("STIF:StopArea:SP:71348:"), PrimClient.monitoringRefs("stop_area:IDFM:71348"))
+    }
+
+    @Test
+    fun otherIdentifiersKeepTheirMonitoringRefs() {
+        assertEquals(
+            listOf("STIF:StopArea:SP:58879:", "STIF:StopPoint:Q:58879:"),
+            PrimClient.monitoringRefs("IDFM:monomodalStopPlace:58879"),
+        )
+        assertEquals(listOf("STIF:StopPoint:Q:463158:"), PrimClient.monitoringRefs("IDFM:463158"))
+        assertEquals(listOf("STIF:StopArea:SP:1:"), PrimClient.monitoringRefs("STIF:StopArea:SP:1:"))
+    }
+
+    @Test
+    fun widgetCreatedWithoutKeyIsServedByPrimOnceAKeyIsAdded() {
+        val snapshot = client().passages("stop_area:IDFM:71348", "C01371")
+        assertEquals(listOf("MonitoringRef=STIF:StopArea:SP:71348:&LineRef=STIF:Line::C01371:"), requests)
+        assertEquals("stop_area:IDFM:71348", snapshot.departures.single().stopId)
+        assertEquals(null, snapshot.dataAt)
+        assertEquals(null, snapshot.fresh)
+    }
 
     @Test
     fun remembersAcceptedFormat() {

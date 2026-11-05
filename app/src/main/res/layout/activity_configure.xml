@@ -99,9 +99,10 @@
                 <TextView
                     style="@style/HelpText"
                     android:layout_marginBottom="8dp"
-                    android:text="@string/key_required" />
+                    android:text="@string/key_optional_help" />
 
                 <TextView
+                    android:id="@+id/key_help"
                     style="@style/HelpText"
                     android:text="@string/main_key_help" />
 

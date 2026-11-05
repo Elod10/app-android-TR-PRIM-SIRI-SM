@@ -97,14 +97,35 @@ object Directions {
         return "→ " + names.joinToString(", ")
     }
 
-    /** Applique le filtre de sens d'un widget aux passages récupérés. */
+    /**
+     * Applique le filtre de sens d'un widget aux passages récupérés. La destination compte aussi : un
+     * widget configuré sans clé retient des destinations, alors que PRIM renvoie parfois un
+     * `DirectionName` différent.
+     */
     fun filter(departures: List<Departure>, selection: Map<String, Set<String>>): List<Departure> {
         if (selection.isEmpty()) return departures
         return departures.filter { d ->
             val keys = selection[d.stopId] ?: return@filter false
-            keys.isEmpty() || keys.any { normalizeLabel(it) == normalizeLabel(d.directionKey) }
+            keys.isEmpty() || keys.any {
+                val key = normalizeLabel(it)
+                key == normalizeLabel(d.directionKey) || key == normalizeLabel(d.destination)
+            }
         }
     }
+
+    /**
+     * Retire les arrivées au terminus, pour ne pas afficher « → Auber » à Auber. Le suffixe de commune
+     * final, « (Grande Arche) » par exemple, ne compte pas dans la comparaison.
+     */
+    fun withoutTerminusArrivals(departures: List<Departure>, stopName: String): List<Departure> {
+        val stop = terminusKey(stopName)
+        if (stop.isEmpty()) return departures
+        return departures.filter { terminusKey(it.destination) != stop }
+    }
+
+    private fun terminusKey(name: String): String = normalizeLabel(name.replace(FINAL_TOWN_SUFFIX, ""))
+
+    private val FINAL_TOWN_SUFFIX = Regex("\\s*\\([^()]*\\)\\s*$")
 
     /** Passages à venir triés par heure (on garde les véhicules encore à quai). */
     fun upcoming(departures: List<Departure>, now: Long, graceMs: Long = 60_000L): List<Departure> =

@@ -24,6 +24,9 @@ enum class TransportMode(val label: String, val apiModes: List<String>) {
         else -> true
     }
 
+    /** Vrai si la ligne relève de ce mode, pour trier une liste qui mélange tous les modes. */
+    fun includes(line: Line): Boolean = line.mode in apiModes && accepts(line)
+
     companion object {
         fun fromName(name: String?): TransportMode? = entries.firstOrNull { it.name == name }
     }
@@ -257,19 +260,36 @@ data class WidgetState(
     val attemptedAt: Long,
     val departures: List<Departure>,
     val error: String?,
+    /** Date du relevé de la source, si elle ne répond pas en direct (cf. [PassageSnapshot]). */
+    val dataAt: Long? = null,
+    /** Faux si le relevé est ancien ; null si la source répond en direct. */
+    val fresh: Boolean? = null,
 ) {
+    /** Vrai si les passages viennent d'un relevé de la source, et non d'une réponse en direct. */
+    val isSnapshot: Boolean get() = fresh != null
+
     fun toJson(): JSONObject = JSONObject()
         .put("fetchedAt", fetchedAt)
         .put("attemptedAt", attemptedAt)
         .put("departures", JSONArray().also { arr -> departures.forEach { arr.put(it.toJson()) } })
         .putOpt("error", error)
+        .putOpt("dataAt", dataAt)
+        .putOpt("fresh", fresh)
 
     companion object {
         fun fromJson(o: JSONObject): WidgetState {
             val arr = o.optJSONArray("departures") ?: JSONArray()
             val list = (0 until arr.length()).mapNotNull { arr.optJSONObject(it)?.let(Departure::fromJson) }
             val fetchedAt = o.optLong("fetchedAt")
-            return WidgetState(fetchedAt, o.optLong("attemptedAt", fetchedAt), list, o.optStringOrNull("error"))
+            return WidgetState(
+                fetchedAt = fetchedAt,
+                attemptedAt = o.optLong("attemptedAt", fetchedAt),
+                departures = list,
+                error = o.optStringOrNull("error"),
+                // Absents des états enregistrés avant l'arrivée de Tracéo.
+                dataAt = o.optLongOrNull("dataAt"),
+                fresh = if (o.has("fresh") && !o.isNull("fresh")) o.optBoolean("fresh") else null,
+            )
         }
     }
 }

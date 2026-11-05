@@ -18,7 +18,7 @@ class PrimClient(
     private val apiKey: String,
     private val stopMonitoringUrl: String = STOP_MONITORING_URL,
     private val formats: FormatCache = FormatCache.InMemory(),
-) {
+) : PassageSource {
 
     /**
      * Mémorise, pour chaque couple point d'arrêt / ligne, le format de requête accepté par PRIM
@@ -49,11 +49,14 @@ class PrimClient(
          * Convertit un identifiant d'arrêt du référentiel IDFM en MonitoringRef(s) SIRI candidats.
          *  - « IDFM:monomodalStopPlace:58879 » (zone d'arrêt, lignes ferrées) → « STIF:StopArea:SP:58879: »
          *  - « IDFM:463158 » (arrêt de référence / quai) → « STIF:StopPoint:Q:463158: »
+         *  - « stop_area:IDFM:71348 » (zone d'arrêt d'un widget créé sans clé) → « STIF:StopArea:SP:71348: »
          */
         fun monitoringRefs(stopId: String): List<String> {
             val id = stopId.trim().trimEnd(':').substringAfterLast(':')
             return when {
                 stopId.startsWith("STIF:") -> listOf(stopId)
+                // Toujours une zone : le même numéro en StopPoint:Q désignerait un autre arrêt.
+                stopId.startsWith("stop_area:", ignoreCase = true) -> listOf("STIF:StopArea:SP:$id:")
                 stopId.contains("monomodalStopPlace", ignoreCase = true) ||
                     stopId.contains("StopArea", ignoreCase = true) ->
                     listOf("STIF:StopArea:SP:$id:", "STIF:StopPoint:Q:$id:")
@@ -117,6 +120,9 @@ class PrimClient(
         }
         throw lastError ?: PrimException(PrimException.Kind.UNKNOWN_STOP, "Arrêt inconnu de l'API PRIM")
     }
+
+    override fun passages(stopId: String, lineId: String): PassageSnapshot =
+        PassageSnapshot(departures(stopId, lineId))
 
     private fun encode(attempt: Pair<String, String?>): String = attempt.first + "|" + (attempt.second ?: "")
 

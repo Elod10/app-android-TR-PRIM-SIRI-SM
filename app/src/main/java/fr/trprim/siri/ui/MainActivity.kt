@@ -9,6 +9,8 @@ import android.content.SharedPreferences
 import android.graphics.Typeface
 import android.os.Bundle
 import android.text.InputType
+import android.text.TextUtils
+import android.text.method.LinkMovementMethod
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
@@ -21,10 +23,13 @@ import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import fr.trprim.siri.R
+import fr.trprim.siri.data.DataSources
 import fr.trprim.siri.data.Directions
+import fr.trprim.siri.data.PassageRoute
 import fr.trprim.siri.data.Prefs
 import fr.trprim.siri.data.PrimClient
 import fr.trprim.siri.data.PrimException
+import fr.trprim.siri.data.WidgetState
 import fr.trprim.siri.widget.BadgeRenderer
 import fr.trprim.siri.widget.DepartureFormat
 import fr.trprim.siri.widget.WidgetProviders
@@ -35,7 +40,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** Écran principal : clé API PRIM, fréquence d'actualisation et liste des widgets. */
+/** Écran principal : clé API PRIM facultative, fréquence d'actualisation et liste des widgets. */
 class MainActivity : Activity() {
 
     private val scope = MainScope()
@@ -44,8 +49,14 @@ class MainActivity : Activity() {
     private lateinit var keyInput: EditText
     private lateinit var keyStatus: TextView
     private lateinit var keyTest: Button
+    private lateinit var sourceStatus: TextView
+    private lateinit var about: TextView
     private lateinit var widgetsContainer: LinearLayout
     private lateinit var widgetsEmpty: TextView
+    private var appVersion: String? = null
+
+    /** Clé affichée dans le champ, pour le resynchroniser si elle change ailleurs (configuration d'un widget). */
+    private var shownKey = ""
 
     private val widgetsListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> refreshWidgetList() }
 
@@ -59,8 +70,13 @@ class MainActivity : Activity() {
         keyTest = findViewById(R.id.key_test)
         widgetsContainer = findViewById(R.id.widgets_container)
         widgetsEmpty = findViewById(R.id.widgets_empty)
+        sourceStatus = findViewById(R.id.source_status)
+        about = findViewById(R.id.about)
+        about.movementMethod = LinkMovementMethod.getInstance()
+        findViewById<TextView>(R.id.key_help).movementMethod = LinkMovementMethod.getInstance()
 
-        keyInput.setText(prefs.apiKey)
+        shownKey = prefs.apiKey
+        keyInput.setText(shownKey)
         findViewById<CheckBox>(R.id.key_show).setOnCheckedChangeListener { _, show ->
             val variation = if (show) InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD else InputType.TYPE_TEXT_VARIATION_PASSWORD
             keyInput.inputType = InputType.TYPE_CLASS_TEXT or variation or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
@@ -71,20 +87,24 @@ class MainActivity : Activity() {
         keyTest.setOnClickListener { testKey() }
         findViewById<Button>(R.id.key_portal).setOnClickListener { UiText.openUrl(this, UiText.PRIM_PORTAL_URL) }
 
-        setupRefreshSpinner()
         findViewById<Button>(R.id.add_widget).setOnClickListener { requestPinWidget() }
 
-        val version = try {
+        appVersion = try {
             packageManager.getPackageInfo(packageName, 0).versionName
         } catch (e: Exception) {
             null
         }
-        findViewById<TextView>(R.id.about).text = getString(R.string.main_about) + (version?.let { "\nVersion $it" } ?: "")
     }
 
     override fun onResume() {
         super.onResume()
         prefs.registerWidgetsListener(widgetsListener)
+        val storedKey = prefs.apiKey
+        if (storedKey != shownKey) {
+            shownKey = storedKey
+            keyInput.setText(storedKey)
+        }
+        renderSource()
         refreshWidgetList()
     }
 
@@ -100,24 +120,27 @@ class MainActivity : Activity() {
 
     // --- Clé API -----------------------------------------------------------------------------
 
-    private fun saveKey(): Boolean {
+    /** Enregistre la clé saisie. Un champ vide retire la clé : les widgets reviennent sur Tracéo. */
+    private fun saveKey() {
         val key = keyInput.text.toString().trim()
-        if (key.isEmpty()) {
-            showKeyStatus(getString(R.string.main_key_empty), error = true)
-            return false
-        }
         val changed = key != prefs.apiKey
         prefs.apiKey = key
-        showKeyStatus(getString(R.string.main_key_saved), error = false)
+        shownKey = key
+        showKeyStatus(getString(if (key.isEmpty()) R.string.main_key_removed else R.string.main_key_saved), error = false)
         if (changed) {
+            renderSource()
             WidgetUpdater.renderAll(this)
             WidgetUpdater.requestRefresh(this)
         }
-        return true
     }
 
     private fun testKey() {
-        if (!saveKey()) return
+        // « Tester » avec un champ vide ne doit pas retirer la clé enregistrée.
+        if (keyInput.text.isNullOrBlank()) {
+            showKeyStatus(getString(R.string.main_key_empty), error = true)
+            return
+        }
+        saveKey()
         val key = prefs.apiKey
         keyTest.isEnabled = false
         showKeyStatus(getString(R.string.main_key_testing), error = false)
@@ -145,11 +168,24 @@ class MainActivity : Activity() {
         keyStatus.setTextColor(getColor(if (error) R.color.error_text else R.color.success_text))
     }
 
+    // --- Source des données ---------------------------------------------------------------------
+
+    /** La source active, les mentions légales et les fréquences proposées dépendent de la clé. */
+    private fun renderSource() {
+        val hasKey = prefs.hasApiKey
+        sourceStatus.setText(if (hasKey) R.string.main_source_prim else R.string.main_source_traceo)
+        about.text = TextUtils.concat(
+            getText(if (hasKey) R.string.main_about_prim else R.string.main_about_traceo),
+            appVersion?.let { "\n\nVersion $it" }.orEmpty(),
+        )
+        setupRefreshSpinner(hasKey)
+    }
+
     // --- Fréquence d'actualisation --------------------------------------------------------------
 
-    private fun setupRefreshSpinner() {
+    private fun setupRefreshSpinner(hasKey: Boolean) {
         val spinner = findViewById<Spinner>(R.id.refresh_spinner)
-        val choices = Prefs.REFRESH_CHOICES
+        val choices = DataSources.refreshChoices(Prefs.REFRESH_CHOICES, hasKey)
         val labels = choices.map { minutes ->
             when (minutes) {
                 0 -> getString(R.string.refresh_manual)
@@ -160,13 +196,14 @@ class MainActivity : Activity() {
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, labels)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinner.adapter = adapter
-        val current = choices.indexOf(prefs.refreshMinutes).takeIf { it >= 0 }
+        val current = choices.indexOf(DataSources.refreshMinutes(prefs.refreshMinutes, hasKey)).takeIf { it >= 0 }
             ?: choices.indexOf(Prefs.DEFAULT_REFRESH_MINUTES)
         spinner.setSelection(current)
         spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 val minutes = choices[position]
-                if (minutes != prefs.refreshMinutes) {
+                // Comparer à l'intervalle appliqué conserve « Chaque minute » pour le retour d'une clé.
+                if (minutes != DataSources.refreshMinutes(prefs.refreshMinutes, hasKey)) {
                     prefs.refreshMinutes = minutes
                     WidgetUpdater.scheduleTick(this@MainActivity)
                 }
@@ -207,13 +244,13 @@ class MainActivity : Activity() {
                 subtitle.text = UiText.lineTitle(config.line) + " · " +
                     config.directionLabel.ifBlank { Directions.ALL_DIRECTIONS }
                 val upcoming = state?.let { Directions.upcoming(it.departures, now) }.orEmpty()
+                val reconfigure = DataSources.route(config.stop.stopIds, prefs.hasApiKey) == PassageRoute.RECONFIGURE
+                if (reconfigure) refresh.visibility = View.GONE
                 departures.text = when {
-                    !prefs.hasApiKey -> getString(R.string.key_required)
+                    reconfigure -> getString(R.string.widget_reconfigure_title)
                     upcoming.isNotEmpty() -> upcoming.take(4).joinToString("\n") { d ->
                         DepartureFormat.waitText(d, now, config.line.mode) + "  ·  " + d.destination
-                    } + (state?.fetchedAt?.takeIf { it > 0 }?.let {
-                        "\n" + getString(R.string.widget_updated_at, DepartureFormat.clock(it, withSeconds = true))
-                    } ?: "")
+                    } + state?.let(::dataTimeLine).orEmpty()
                     state?.error != null -> state.error
                     state != null -> getString(R.string.widget_no_departure)
                     else -> getString(R.string.main_widget_no_data)
@@ -230,6 +267,18 @@ class MainActivity : Activity() {
                 if (index == ids.lastIndex) View.GONE else View.VISIBLE
             widgetsContainer.addView(view)
         }
+    }
+
+    /** Fin du résumé d'un widget : heure du relevé ou, en direct, de la dernière mise à jour. */
+    private fun dataTimeLine(state: WidgetState): String {
+        val at = if (state.isSnapshot) state.dataAt else state.fetchedAt
+        val time = at?.takeIf { it > 0 }?.let { DepartureFormat.clock(it, withSeconds = true) } ?: return ""
+        val label = when {
+            !state.isSnapshot -> R.string.widget_updated_at
+            state.fresh == false -> R.string.widget_snapshot_old
+            else -> R.string.widget_snapshot_at
+        }
+        return "\n" + getString(label, time)
     }
 
     /** Propose les widgets disponibles, puis demande au lanceur d'ajouter celui qui est choisi. */

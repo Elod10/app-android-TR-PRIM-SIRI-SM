@@ -8,13 +8,12 @@ import android.content.Intent
 import android.os.Build
 import android.os.PowerManager
 import android.util.Log
-import fr.trprim.siri.data.Departure
-import fr.trprim.siri.data.Directions
-import fr.trprim.siri.data.PrimClient
-import fr.trprim.siri.data.PrimException
+import fr.trprim.siri.data.DataSources
+import fr.trprim.siri.data.PassageRoute
+import fr.trprim.siri.data.PassageSnapshot
 import fr.trprim.siri.data.Prefs
-import fr.trprim.siri.data.WidgetConfig
 import fr.trprim.siri.data.WidgetState
+import fr.trprim.siri.data.WidgetStates
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -27,9 +26,9 @@ import kotlinx.coroutines.sync.withLock
  * Récupération des passages et mise à jour des widgets.
  *
  * Un « tick » non réveillant (AlarmManager.RTC) est programmé chaque minute tant qu'il existe
- * des widgets : il recalcule les temps d'attente affichés et relance une requête PRIM quand
- * l'intervalle d'actualisation choisi est écoulé. Comme l'alarme ne réveille pas l'appareil,
- * aucune requête n'est faite écran éteint.
+ * des widgets : il recalcule les temps d'attente affichés et relance une requête (Tracéo sans clé,
+ * PRIM avec une clé) quand l'intervalle d'actualisation choisi est écoulé. Comme l'alarme ne
+ * réveille pas l'appareil, aucune requête n'est faite écran éteint.
  *
  * L'alarme est exacte : depuis Android 12, une alarme simple peut arriver jusqu'à une heure après
  * l'heure demandée, ce qui figerait les temps d'attente affichés.
@@ -41,7 +40,6 @@ object WidgetUpdater {
 
     private const val TAG = "TRWidget"
     private const val TICK_INTERVAL_MS = 60_000L
-    private const val MAX_STORED_DEPARTURES = 12
     private val RENDER_QUALITIES = listOf(1f, 0.7f, 0.5f)
 
     private val mutex = Mutex()
@@ -83,34 +81,34 @@ object WidgetUpdater {
 
     /**
      * Actualise les widgets indiqués.
-     * @param force true pour interroger PRIM même si l'intervalle n'est pas écoulé (action utilisateur)
+     * @param force true pour interroger la source même si l'intervalle n'est pas écoulé (action utilisateur)
      */
     suspend fun refresh(context: Context, ids: IntArray, force: Boolean) {
         mutex.withLock {
             val prefs = Prefs(context)
             val now = System.currentTimeMillis()
+            val hasKey = prefs.hasApiKey
+            val refreshMinutes = DataSources.refreshMinutes(prefs.refreshMinutes, hasKey)
             // Écran éteint (ex. rafraîchissement périodique déclenché par Android) : aucune requête,
             // sauf action explicite de l'utilisateur.
             val screenOn = isInteractive(context)
             val targets = ids.filter { id ->
-                prefs.config(id) != null &&
-                    (force || (screenOn && needsRefresh(prefs.state(id), prefs.refreshMinutes, now)))
+                val config = prefs.config(id)
+                // Un widget à reconfigurer ne fait aucun appel, même à la demande : Tracéo répondrait 404.
+                config != null && DataSources.route(config.stop.stopIds, hasKey) != PassageRoute.RECONFIGURE &&
+                    (force || (screenOn && needsRefresh(prefs.state(id), refreshMinutes, now)))
             }
             ids.filter { it !in targets }.forEach { render(context, it) }
             if (targets.isEmpty()) return
-            if (!prefs.hasApiKey) {
-                targets.forEach { render(context, it) }
-                return
-            }
 
             targets.forEach { render(context, it, refreshing = true) }
-            val client = PrimClient(prefs.apiKey, formats = prefs.primFormats)
+            val source = DataSources.passageSource(prefs.apiKey, prefs.primFormats)
             coroutineScope {
                 // Requêtes partagées entre widgets portant sur le même point d'arrêt et la même ligne.
-                val requests = HashMap<Pair<String, String>, Deferred<Result<List<Departure>>>>()
-                fun fetch(stopId: String, lineId: String): Deferred<Result<List<Departure>>> =
+                val requests = HashMap<Pair<String, String>, Deferred<Result<PassageSnapshot>>>()
+                fun fetch(stopId: String, lineId: String): Deferred<Result<PassageSnapshot>> =
                     requests.getOrPut(stopId to lineId) {
-                        async(Dispatchers.IO) { runCatching { client.departures(stopId, lineId) } }
+                        async(Dispatchers.IO) { runCatching { source.passages(stopId, lineId) } }
                     }
 
                 val perWidget = targets.mapNotNull { id ->
@@ -120,44 +118,16 @@ object WidgetUpdater {
                 }
                 perWidget.forEach { (id, config, deferred) ->
                     val results = deferred.awaitAll()
-                    val state = buildState(config, results, prefs.state(id), System.currentTimeMillis())
+                    results.mapNotNull { it.exceptionOrNull() }.forEach { Log.w(TAG, "Erreur de la source : ${it.message}") }
+                    val state = WidgetStates.from(
+                        config, results, prefs.state(id), System.currentTimeMillis(),
+                        removeTerminusArrivals = !hasKey,
+                    )
                     prefs.saveState(id, state)
                     render(context, id)
                 }
             }
         }
-    }
-
-    private fun buildState(
-        config: WidgetConfig,
-        results: List<Result<List<Departure>>>,
-        previous: WidgetState?,
-        now: Long,
-    ): WidgetState {
-        val successes = results.filter { it.isSuccess }.flatMap { it.getOrDefault(emptyList()) }
-        val errors = results.mapNotNull { it.exceptionOrNull() }
-        errors.forEach { Log.w(TAG, "Erreur PRIM : ${it.message}") }
-
-        if (results.isNotEmpty() && errors.size == results.size) {
-            return WidgetState(
-                fetchedAt = previous?.fetchedAt ?: 0L,
-                attemptedAt = now,
-                departures = previous?.departures.orEmpty(),
-                error = errorMessage(errors.first()),
-            )
-        }
-        val filtered = Directions.upcoming(Directions.filter(successes, config.directions), now)
-        return WidgetState(
-            fetchedAt = now,
-            attemptedAt = now,
-            departures = filtered.take(MAX_STORED_DEPARTURES),
-            error = if (errors.isNotEmpty() && filtered.isEmpty()) errorMessage(errors.first()) else null,
-        )
-    }
-
-    private fun errorMessage(t: Throwable): String = when (t) {
-        is PrimException -> t.message ?: "Erreur PRIM"
-        else -> "Erreur : ${t.message ?: t.javaClass.simpleName}"
     }
 
     private fun isInteractive(context: Context): Boolean =

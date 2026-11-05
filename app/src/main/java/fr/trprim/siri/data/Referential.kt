@@ -152,7 +152,7 @@ object Referential {
 
     fun bareLineId(id: String): String = id.trim().trimEnd(':').substringAfterLast(':')
 
-    private fun cleanColor(c: String): String? {
+    fun cleanColor(c: String): String? {
         val hex = c.trim().removePrefix("#")
         return if (hex.matches(Regex("[0-9A-Fa-f]{6}"))) hex.uppercase(Locale.ROOT) else null
     }
@@ -189,7 +189,7 @@ object Referential {
         ta.size - tb.size
     }
 
-    private val lineComparator: Comparator<Line> = Comparator { a, b ->
+    val lineComparator: Comparator<Line> = Comparator { a, b ->
         val c = naturalComparator.compare(a.shortName, b.shortName)
         if (c != 0) c else naturalComparator.compare(a.subtitle(), b.subtitle())
     }
