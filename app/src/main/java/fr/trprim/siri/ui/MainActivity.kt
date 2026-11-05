@@ -29,6 +29,8 @@ import fr.trprim.siri.data.PassageRoute
 import fr.trprim.siri.data.Prefs
 import fr.trprim.siri.data.PrimClient
 import fr.trprim.siri.data.PrimException
+import fr.trprim.siri.data.Proximity
+import fr.trprim.siri.data.ProximityState
 import fr.trprim.siri.data.WidgetState
 import fr.trprim.siri.widget.BadgeRenderer
 import fr.trprim.siri.widget.DepartureFormat
@@ -238,6 +240,12 @@ class MainActivity : Activity() {
                 subtitle.text = getString(R.string.widget_tap_to_configure)
                 departures.visibility = View.GONE
                 refresh.visibility = View.GONE
+            } else if (WidgetProviders.isProximity(this, id)) {
+                badge.visibility = View.GONE
+                title.text = getString(R.string.widget_proximite_name)
+                subtitle.text = getString(R.string.main_proximite_subtitle)
+                departures.text = proximitySummary(prefs.proximity(id), now)
+                refresh.setOnClickListener { WidgetUpdater.requestRefresh(this, id) }
             } else {
                 badge.setImageBitmap(BadgeRenderer.render(this, config.line))
                 title.text = config.stop.name
@@ -267,6 +275,19 @@ class MainActivity : Activity() {
                 if (index == ids.lastIndex) View.GONE else View.VISIBLE
             widgetsContainer.addView(view)
         }
+    }
+
+    /** Résumé du format À proximité : le prochain passage de chaque ligne affichée. */
+    private fun proximitySummary(state: ProximityState?, now: Long): String {
+        state ?: return getString(R.string.main_widget_no_data)
+        val lines = Proximity.visible(state.entries, now, PROXIMITY_LINES_SHOWN).mapNotNull { entry ->
+            val next = Proximity.upcoming(entry.departures, now).firstOrNull() ?: return@mapNotNull null
+            UiText.lineTitle(entry.nearby.line) + "  ·  " +
+                DepartureFormat.waitText(next, now, entry.nearby.line.mode) + "  ·  " + next.destination
+        }
+        if (lines.isEmpty()) return state.error ?: getString(R.string.widget_no_departure)
+        val summary = WidgetState(state.fetchedAt, state.attemptedAt, emptyList(), state.error, state.dataAt, state.fresh)
+        return lines.joinToString("\n") + dataTimeLine(summary)
     }
 
     /** Fin du résumé d'un widget : heure du relevé ou, en direct, de la dernière mise à jour. */
@@ -301,5 +322,9 @@ class MainActivity : Activity() {
 
     private fun showPinUnsupported() {
         Toast.makeText(this, R.string.main_add_widget_unsupported, Toast.LENGTH_LONG).show()
+    }
+
+    private companion object {
+        const val PROXIMITY_LINES_SHOWN = 3
     }
 }

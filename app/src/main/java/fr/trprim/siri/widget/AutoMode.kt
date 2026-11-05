@@ -19,15 +19,16 @@ import fr.trprim.siri.data.PassageSource
 import fr.trprim.siri.data.PositionFix
 import fr.trprim.siri.data.PositionReader
 import fr.trprim.siri.data.Prefs
-import fr.trprim.siri.data.PrimException
+import fr.trprim.siri.data.Proximity
 import fr.trprim.siri.data.StopIndexStore
-import fr.trprim.siri.data.TraceoException
 import fr.trprim.siri.data.TransportMode
 import fr.trprim.siri.data.WidgetConfig
 import fr.trprim.siri.data.WidgetState
 import fr.trprim.siri.data.WidgetStates
 import fr.trprim.siri.data.WidgetTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
@@ -171,10 +172,19 @@ object AutoMode {
             AnchorDecision.IMPRECISE -> AutoMessage.IMPRECISE
             else -> null
         }
+        val proximity = WidgetProviders.isProximity(app, widgetId)
         var anchor = before.anchor
         var shownLineId = config.line.id
         var applied = false
-        if (decision == AnchorDecision.MOVED && point != null) {
+        if (decision == AnchorDecision.MOVED && point != null && proximity) {
+            // L'actualisation qui suit classe les lignes autour de cette nouvelle position.
+            if (ranking?.list.isNullOrEmpty()) {
+                message = AutoMessage.NO_STOP
+            } else {
+                anchor = point
+                prefs.saveAuto(widgetId, prefs.auto(widgetId).copy(anchor = point))
+            }
+        } else if (decision == AnchorDecision.MOVED && point != null) {
             val best = pickBest(prefs, config, ranking)
             if (tookOver(widgetId, tappedAt)) return
             if (best == null) {
@@ -194,18 +204,63 @@ object AutoMode {
 
         val lines = ranking?.list.orEmpty()
         val latest = prefs.auto(widgetId)
+        val now = System.currentTimeMillis()
+        val others = if (proximity) {
+            val shown = prefs.proximity(widgetId)?.let { Proximity.visible(it.entries, now, proximityRows(app, widgetId)).size } ?: 0
+            maxOf(0, lines.size - shown)
+        } else {
+            lines.count { it.nearby.line.id != shownLineId }
+        }
         prefs.saveAuto(
             widgetId,
             latest.copy(
                 anchor = anchor,
                 last = point,
                 distanceM = lines.firstOrNull { it.nearby.line.id == shownLineId }?.nearby?.distanceM ?: latest.distanceM,
-                hintUntil = System.currentTimeMillis() + AutoState.HINT_MS,
-                others = lines.count { it.nearby.line.id != shownLineId },
+                hintUntil = now + AutoState.HINT_MS,
+                others = others,
                 message = message,
             ),
         )
         WidgetUpdater.render(app, widgetId)
+    }
+
+    /**
+     * Actualise le format À proximité autour de la position où ses lignes ont été choisies. Les
+     * favoris et le choix fait ici sont relus à chaque fois, sans appel réseau de plus.
+     */
+    suspend fun refreshProximity(context: Context, widgetId: Int) {
+        val app = context.applicationContext
+        val prefs = Prefs(app)
+        val auto = prefs.auto(widgetId)
+        val point = auto.anchor ?: auto.last
+        val ranked = withContext(Dispatchers.IO) { point?.let { rankingEnsuringIndex(app, it) } }?.list.orEmpty()
+        val hasKey = prefs.hasApiKey
+        val source = DataSources.proximitySource(prefs.apiKey, prefs.primFormats)
+        val state = Proximity.collect(
+            ranked = ranked,
+            rows = proximityRows(app, widgetId),
+            now = System.currentTimeMillis(),
+            previous = prefs.proximity(widgetId),
+            removeTerminusArrivals = !hasKey,
+        ) { batch ->
+            withContext(Dispatchers.IO) { batch.map { async { source(it) } }.awaitAll() }
+        }
+        prefs.saveProximity(widgetId, state)
+    }
+
+    /** Vrai si un widget À proximité a de la place pour plus de lignes qu'il n'en connaît. */
+    fun wantsMoreLines(context: Context, widgetId: Int): Boolean {
+        if (!WidgetProviders.isProximity(context, widgetId)) return false
+        val state = Prefs(context).proximity(widgetId) ?: return false
+        val rows = proximityRows(context, widgetId)
+        return Proximity.visible(state.entries, System.currentTimeMillis(), rows).size < rows
+    }
+
+    private fun proximityRows(context: Context, widgetId: Int): Int {
+        val options = AppWidgetManager.getInstance(context).getAppWidgetOptions(widgetId)
+        val (width, height) = WidgetRenderer.widgetSize(context, options)
+        return ProximityLayout.rows(width, height)
     }
 
     private fun rankingEnsuringIndex(context: Context, point: GeoPoint): NearbyRanking? {
@@ -242,10 +297,10 @@ object AutoMode {
                     } else {
                         fetch(source, nearby)
                     }
-                    if (isNetworkFailure(result.exceptionOrNull())) offline = true
+                    if (DataSources.isNetworkFailure(result.exceptionOrNull())) offline = true
                     next to WidgetStates.from(next, listOf(result), null, now, removeTerminusArrivals = !hasKey)
                 },
-                isActive = { (_, state) -> hasPassageSoon(state, now) },
+                isActive = { (_, state) -> Proximity.hasPassageSoon(state.departures, now) },
             )
         } ?: return null
         val (next, state) = chosen.second
@@ -259,6 +314,16 @@ object AutoMode {
         val config = prefs.config(widgetId) ?: return
         val now = System.currentTimeMillis()
         prefs.auto(widgetId).last?.let { prefs.placeChoices = prefs.placeChoices.remember(it, nearby.line.id, now) }
+        if (WidgetProviders.isProximity(app, widgetId)) {
+            // La ligne choisie passe en tête : le classement suffit à la placer.
+            val current = prefs.auto(widgetId)
+            prefs.saveAuto(
+                widgetId,
+                current.copy(anchor = current.last ?: current.anchor, choiceUntil = 0L, hintUntil = 0L, others = 0, message = null),
+            )
+            WidgetUpdater.refresh(app, intArrayOf(widgetId), force = true)
+            return
+        }
         val next = configFor(widgetId, nearby, config.theme)
         val source = DataSources.passageSource(prefs.apiKey, prefs.primFormats)
         val result = withContext(Dispatchers.IO) { fetch(source, nearby) }
@@ -305,16 +370,4 @@ object AutoMode {
 
     fun fetch(source: PassageSource, nearby: NearbyLine) =
         runCatching { source.passages(nearby.stopId, nearby.line.id) }
-
-    private fun isNetworkFailure(error: Throwable?): Boolean = when (error) {
-        null -> false
-        is TraceoException -> error.kind == TraceoException.Kind.NETWORK
-        is PrimException -> error.kind == PrimException.Kind.NETWORK
-        else -> true
-    }
-
-    private fun hasPassageSoon(state: WidgetState, now: Long): Boolean {
-        val limit = now + NearbyRules.ACTIVE_WITHIN_MINUTES * 60_000L
-        return state.departures.any { !it.isCancelled && (it.displayTime ?: Long.MAX_VALUE) <= limit }
-    }
 }

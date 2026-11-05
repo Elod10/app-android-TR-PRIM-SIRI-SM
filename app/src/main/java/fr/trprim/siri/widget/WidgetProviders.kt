@@ -1,5 +1,6 @@
 package fr.trprim.siri.widget
 
+import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import fr.trprim.siri.R
@@ -15,6 +16,7 @@ class DeuxSensWidgetProvider : DeparturesWidgetProvider()
 class DeuxSensLargeWidgetProvider : DeparturesWidgetProvider()
 class TrainWidgetProvider : DeparturesWidgetProvider()
 class ListeWidgetProvider : DeparturesWidgetProvider()
+class ProximiteWidgetProvider : DeparturesWidgetProvider()
 
 /** Un widget proposé à l'utilisateur. */
 class WidgetEntry(
@@ -69,6 +71,10 @@ object WidgetProviders {
             R.string.widget_liste_name, R.string.widget_liste_description, R.drawable.preview_liste, "4×2",
         ),
         WidgetEntry(
+            ProximiteWidgetProvider::class.java, WidgetFormat.PROXIMITE,
+            R.string.widget_proximite_name, R.string.widget_proximite_description, R.drawable.preview_proximite, "4×2",
+        ),
+        WidgetEntry(
             DeparturesWidgetProvider::class.java, null,
             R.string.widget_auto_name, R.string.widget_auto_description, R.drawable.preview_deux_sens_large, "4×2",
         ),
@@ -77,6 +83,11 @@ object WidgetProviders {
     /** Format imposé par le fournisseur, ou null pour l'entrée automatique. */
     fun formatOf(providerClassName: String?): WidgetFormat? =
         catalog.firstOrNull { it.provider.name == providerClassName }?.format
+
+    fun isProximity(context: Context, widgetId: Int): Boolean {
+        val info = AppWidgetManager.getInstance(context).getAppWidgetInfo(widgetId) ?: return false
+        return formatOf(info.provider?.className) == WidgetFormat.PROXIMITE
+    }
 
     /** Tous les fournisseurs de widgets de l'application. */
     fun components(context: Context): List<ComponentName> =

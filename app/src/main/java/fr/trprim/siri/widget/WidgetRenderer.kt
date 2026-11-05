@@ -13,6 +13,7 @@ import fr.trprim.siri.data.AutoHint
 import fr.trprim.siri.data.AutoMessage
 import fr.trprim.siri.data.AutoState
 import fr.trprim.siri.data.PositionReader
+import fr.trprim.siri.data.ProximityState
 import fr.trprim.siri.data.WidgetConfig
 import fr.trprim.siri.data.WidgetState
 import fr.trprim.siri.ui.ConfigureActivity
@@ -40,6 +41,7 @@ object WidgetRenderer {
         fixedFormat: WidgetFormat? = null,
         renderScale: Float = 1f,
         auto: AutoState? = null,
+        proximity: ProximityState? = null,
     ): RemoteViews {
         val (width, height) = widgetSize(context, options)
         val isAuto = config?.auto == true
@@ -50,11 +52,15 @@ object WidgetRenderer {
             !canLocate -> AutoHint(AutoMessage.NEEDS_ACCESS.label, AutoMessage.NEEDS_ACCESS.short)
             else -> auto?.hint(now)
         }
-        val model = WidgetModels.build(
-            config, state, hasApiKey, refreshing, width, height, now, fixedFormat,
-            autoHint = hint,
-            autoDistanceM = auto?.distanceM.takeIf { isAuto },
-        )
+        val model = if (fixedFormat == WidgetFormat.PROXIMITE) {
+            WidgetModels.buildProximity(config, proximity, refreshing, width, height, now, isNight(context), hint)
+        } else {
+            WidgetModels.build(
+                config, state, hasApiKey, refreshing, width, height, now, fixedFormat,
+                autoHint = hint,
+                autoDistanceM = auto?.distanceM.takeIf { isAuto },
+            )
+        }
         val density = context.resources.displayMetrics.density * renderScale
 
         val views = RemoteViews(context.packageName, R.layout.widget_canvas)
@@ -100,8 +106,11 @@ object WidgetRenderer {
             setOnClickPendingIntent(R.id.widget_root, choicePendingIntent(context, widgetId))
         }
 
+    private fun isNight(context: Context): Boolean =
+        context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+
     /** Taille actuelle du widget en dp, selon l'orientation de l'écran. */
-    private fun widgetSize(context: Context, options: Bundle?): Pair<Float, Float> {
+    fun widgetSize(context: Context, options: Bundle?): Pair<Float, Float> {
         val minWidth = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0) ?: 0
         val maxWidth = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0) ?: 0
         val minHeight = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0) ?: 0

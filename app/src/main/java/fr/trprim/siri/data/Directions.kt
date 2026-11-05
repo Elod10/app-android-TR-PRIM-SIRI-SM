@@ -137,5 +137,25 @@ object Directions {
             .distinctBy { Triple(normalizeLabel(it.destination), it.displayTime, it.stopId) }
             .sortedBy { it.displayTime ?: Long.MAX_VALUE }
 
+    /**
+     * Le sens réel d'un passage. Le flux SIRI ET classe des trains vers l'est du RER A avec ceux qui
+     * partent vers l'ouest (relevés du 5 novembre 2026 à Nation et à Gare de Lyon) : leur destination
+     * prime donc sur le sens indiqué.
+     */
+    fun realDirection(lineId: String, destination: String, directionRef: String?): String? =
+        if (Referential.bareLineId(lineId) == RER_A && normalizeLabel(destination) in RER_A_EAST) RER_A_EAST_KEY else directionRef
+
+    private const val RER_A = "C01742"
+    private const val RER_A_EAST_KEY = "est"
+    private val RER_A_EAST = setOf(
+        "Boissy-Saint-Léger",
+        "Sucy - Bonneuil",
+        "Torcy",
+        "Marne-la-Vallée Chessy",
+        "Noisy-le-Grand - Mont d'Est",
+        "Val d'Europe",
+        "Bussy-Saint-Georges",
+    ).map(::normalizeLabel).toSet()
+
     const val ALL_DIRECTIONS = "Tous les sens"
 }

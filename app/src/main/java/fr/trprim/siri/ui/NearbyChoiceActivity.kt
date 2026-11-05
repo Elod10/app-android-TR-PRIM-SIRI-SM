@@ -27,6 +27,7 @@ import fr.trprim.siri.widget.BadgeRenderer
 import fr.trprim.siri.widget.Passage
 import fr.trprim.siri.widget.WaitKind
 import fr.trprim.siri.widget.WidgetContent
+import fr.trprim.siri.widget.WidgetProviders
 import fr.trprim.siri.widget.WidgetUpdater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
@@ -61,7 +62,9 @@ class NearbyChoiceActivity : Activity() {
 
         prefs = Prefs(this)
         status = findViewById(R.id.nearby_status)
-        adapter = NearbyAdapter(this, prefs.favoriteLines, prefs.config(widgetId)?.line?.id) { row ->
+        // Le format À proximité affiche plusieurs lignes : aucune n'est « la » ligne affichée.
+        val shownLineId = prefs.config(widgetId)?.line?.id.takeUnless { WidgetProviders.isProximity(this, widgetId) }
+        adapter = NearbyAdapter(this, prefs.favoriteLines, shownLineId) { row ->
             val favorite = prefs.toggleFavoriteLine(row.nearby.line.id)
             adapter.setFavorite(row.nearby.line.id, favorite)
         }
