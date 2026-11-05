@@ -212,6 +212,14 @@
     <string name="lock_window_to">À %1$s</string>
     <string name="lock_window_help">Pendant la plage, la notification s\'affiche et la position est suivie. En dehors, le widget s\'actualise comme d\'habitude. Une fin avant le début passe minuit.</string>
     <string name="lock_window_one_day">Gardez au moins un jour.</string>
+    <string name="lock_tile_section">Réglages rapides</string>
+    <string name="lock_tile_this">La tuile « Prochains passages » montre ce widget</string>
+    <string name="lock_tile_other">La tuile « Prochains passages » montre un autre widget</string>
+    <string name="lock_tile_help">La tuile s\'ouvre en tirant le volet, même téléphone verrouillé. Elle montre le prochain passage et se met à jour à l\'ouverture du volet ; la toucher actualise les passages. Pour l\'ajouter, modifiez les réglages rapides.</string>
+    <string name="lock_tile_choose">Montrer ce widget dans la tuile</string>
+    <string name="lock_tile_add">Ajouter la tuile aux réglages rapides</string>
+    <string name="tile_label">Prochains passages</string>
+    <string name="tile_empty">Aucun widget configuré</string>
     <string name="lock_day_on">%1$s, choisi</string>
     <string name="lock_day_off">%1$s, non choisi</string>
     <string name="lock_summary_off">Désactivé</string>

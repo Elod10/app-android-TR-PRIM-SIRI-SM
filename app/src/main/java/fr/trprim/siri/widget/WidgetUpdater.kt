@@ -48,11 +48,14 @@ object WidgetUpdater {
         return WidgetProviders.components(context).flatMap { manager.getAppWidgetIds(it).asList() }.toIntArray()
     }
 
-    /** Redessine un widget, et sa notification, à partir de l'état en cache (sans réseau). */
+    /** Redessine un widget, sa notification et la tuile, à partir de l'état en cache (sans réseau). */
     fun render(context: Context, widgetId: Int, refreshing: Boolean = false) {
         draw(context, widgetId, refreshing)
-        // Pendant une actualisation, la notification garde les passages précédents.
-        if (!refreshing) PassageNotifications.update(context, widgetId)
+        // Pendant une actualisation, la notification et la tuile gardent les passages précédents.
+        if (!refreshing) {
+            PassageNotifications.update(context, widgetId)
+            QuickTile.update(context, widgetId)
+        }
     }
 
     private fun draw(context: Context, widgetId: Int, refreshing: Boolean) {

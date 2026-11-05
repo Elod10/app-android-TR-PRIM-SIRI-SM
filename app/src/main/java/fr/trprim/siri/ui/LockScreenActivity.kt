@@ -28,6 +28,7 @@ import fr.trprim.siri.data.PositionReader
 import fr.trprim.siri.data.Prefs
 import fr.trprim.siri.data.TimeWindow
 import fr.trprim.siri.widget.PassageNotifications
+import fr.trprim.siri.widget.QuickTile
 import fr.trprim.siri.widget.WidgetFormat
 import fr.trprim.siri.widget.WidgetProviders
 import fr.trprim.siri.widget.WidgetUpdater
@@ -36,7 +37,8 @@ import kotlin.math.roundToInt
 
 /**
  * Réglages d'un widget pour l'écran de verrouillage : sa notification, le suivi de la position sans
- * toucher le widget et la plage horaire où les deux s'appliquent. Chaque choix est enregistré aussitôt.
+ * toucher le widget, la plage horaire où les deux s'appliquent et la tuile des réglages rapides.
+ * Chaque choix est enregistré aussitôt.
  */
 class LockScreenActivity : Activity() {
 
@@ -129,6 +131,27 @@ class LockScreenActivity : Activity() {
         start.setOnClickListener { pickTime(draft.startMinute) { draft = draft.copy(startMinute = it) } }
         end.setOnClickListener { pickTime(draft.endMinute) { draft = draft.copy(endMinute = it) } }
         renderWindow()
+
+        findViewById<View>(R.id.tile_choose).setOnClickListener {
+            prefs.tileWidget = widgetId
+            WidgetUpdater.render(this, widgetId)
+            renderTile()
+        }
+        val add = findViewById<View>(R.id.tile_add)
+        add.visibility = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) View.VISIBLE else View.GONE
+        add.setOnClickListener {
+            // Android affiche sa propre demande ; une tuile déjà ajoutée n'est pas proposée deux fois.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) QuickTile.requestAdd(this, mainExecutor) { }
+        }
+        renderTile()
+    }
+
+    // --- Tuile des réglages rapides ---------------------------------------------------------------
+
+    private fun renderTile() {
+        val shown = QuickTile.widgetId(this) == widgetId
+        findViewById<TextView>(R.id.tile_status).setText(if (shown) R.string.lock_tile_this else R.string.lock_tile_other)
+        findViewById<View>(R.id.tile_choose).visibility = if (shown) View.GONE else View.VISIBLE
     }
 
     override fun onResume() {

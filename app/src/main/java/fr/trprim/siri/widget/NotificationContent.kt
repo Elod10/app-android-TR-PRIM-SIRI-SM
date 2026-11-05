@@ -14,7 +14,18 @@ data class NotificationText(
     val subText: String?,
 )
 
-/** Met en mots le contenu d'un widget, pour sa notification. */
+/** Texte de la tuile des réglages rapides. */
+data class TileText(
+    val label: String,
+    /** Seconde ligne, affichée depuis Android 10. */
+    val subtitle: String?,
+    /** Tout le contenu, pour les lecteurs d'écran. */
+    val description: String,
+    /** Faux quand la tuile n'a pas de passage à montrer : elle apparaît alors éteinte. */
+    val active: Boolean,
+)
+
+/** Met en mots le contenu d'un widget, pour sa notification et pour la tuile des réglages rapides. */
 object NotificationContent {
 
     /** Longueur au-delà de laquelle un nom de sens est raccourci dans la notification repliée. */
@@ -69,6 +80,60 @@ object NotificationContent {
         val directions = row.directions.joinToString(" · ") { "${compact(it.label)} ${wait(it.first)}" }
             .ifEmpty { "aucun passage" }
         return "$name, ${row.place} : $directions"
+    }
+
+    /**
+     * Texte de la tuile des réglages rapides : deux lignes courtes, l'attente en premier.
+     * Un sens : « 3 min, puis 9 » / « Métro 13 → Châtillon ». Deux sens : un sens par ligne.
+     */
+    fun tile(model: WidgetModel, lineTitle: String?, noticeText: (Notice) -> String?): TileText? {
+        val full = build(model, lineTitle, noticeText) ?: return null
+        val description = (listOf(full.title) + full.lines).joinToString(". ")
+        val line = lineTitle ?: model.line?.label
+        model.notice?.let { notice ->
+            return TileText(line ?: model.stopName, noticeText(notice), description, active = false)
+        }
+        if (model.format == WidgetFormat.PROXIMITE) {
+            val row = model.proximity.firstOrNull { it.directions.isNotEmpty() }
+                ?: return TileText(model.stopName, full.text, description, active = false)
+            val direction = row.directions.first()
+            val name = row.line?.let(UiText::lineTitle) ?: row.badge.label
+            return TileText("$name · ${wait(direction.first)}", "vers ${compact(direction.label)}", description, active = true)
+        }
+        val groups = model.groups
+        return if (groups.size >= 2) {
+            TileText(
+                "${compact(groups[0].label)} ${wait(groups[0].first)}",
+                "${compact(groups[1].label)} ${wait(groups[1].first)}",
+                description,
+                active = true,
+            )
+        } else {
+            val group = groups.firstOrNull() ?: return TileText(line ?: model.stopName, full.text, description, active = false)
+            val then = group.next?.let { ", ${it.thenLabel()}" }.orEmpty()
+            val towards = listOfNotNull(line, compact(group.label)).joinToString(" → ")
+            TileText("${wait(group.first)}$then", towards, description, active = true)
+        }
+    }
+
+    /**
+     * Texte de la pastille d'une Live Update dans la barre d'état : le prochain passage, très court.
+     * Null quand il n'y a pas de passage à annoncer.
+     */
+    fun chip(model: WidgetModel): String? {
+        if (model.notice != null) return null
+        val first = if (model.format == WidgetFormat.PROXIMITE) {
+            model.proximity.firstNotNullOfOrNull { it.directions.firstOrNull()?.first }
+        } else {
+            model.groups.mapNotNull { group -> group.passages.firstOrNull { it.kind != WaitKind.CANCELLED } }
+                .minByOrNull { it.railMinutes }
+        } ?: return null
+        return when (first.kind) {
+            WaitKind.MINUTES -> "${max(0, first.minutes)} min"
+            WaitKind.CLOCK -> first.clock
+            WaitKind.IMMINENT, WaitKind.AT_STOP -> "<1 min"
+            WaitKind.CANCELLED -> null
+        }
     }
 
     /** Attente telle qu'on la lit dans une phrase : « 3 min », « 17:05 », « à quai »… */

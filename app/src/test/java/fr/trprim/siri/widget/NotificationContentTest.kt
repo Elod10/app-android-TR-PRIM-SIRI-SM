@@ -61,6 +61,42 @@ class NotificationContentTest {
         return NotificationContent.build(model, config?.line?.let(UiText::lineTitle)) { it.kind.name }
     }
 
+    private fun model(config: WidgetConfig?, state: WidgetState?) =
+        WidgetModels.build(config, state, hasApiKey = true, refreshing = false, widthDp = 348f, heightDp = 192f, now = now)
+
+    private fun tile(config: WidgetConfig?, state: WidgetState?): TileText? =
+        NotificationContent.tile(model(config, state), config?.line?.let(UiText::lineTitle)) { it.kind.name }
+
+    @Test
+    fun theTilePutsTheWaitFirst() {
+        val one = tile(config(metro, listOf("IDFM:1")), state(dep("Château de Vincennes", 3), dep("Château de Vincennes", 9)))!!
+        assertEquals("3 min, puis 9", one.label)
+        assertEquals("Métro 1 → Vincennes", one.subtitle)
+        assertEquals(true, one.active)
+
+        val two = tile(config(metro), state(dep("Château de Vincennes", 3), dep("La Défense (Grande Arche)", 5, stopId = "IDFM:2")))!!
+        assertEquals("Vincennes 3 min", two.label)
+        assertEquals("La Défense 5 min", two.subtitle)
+        assertEquals("Métro 1 · Bastille. Vers Château de Vincennes : 3 min. Vers La Défense : 5 min", two.description)
+    }
+
+    @Test
+    fun aTileWithoutDeparturesLooksOff() {
+        val loading = tile(config(metro), null)!!
+        assertEquals("Métro 1", loading.label)
+        assertEquals("LOADING", loading.subtitle)
+        assertEquals(false, loading.active)
+        assertNull(tile(null, null))
+    }
+
+    @Test
+    fun theChipGivesTheVeryNextDeparture() {
+        val departures = state(dep("Château de Vincennes", 7), dep("La Défense (Grande Arche)", 2, stopId = "IDFM:2"))
+        assertEquals("2 min", NotificationContent.chip(model(config(metro), departures)))
+        assertEquals("<1 min", NotificationContent.chip(model(config(metro), state(dep("La Défense", 0)))))
+        assertNull(NotificationContent.chip(model(config(metro), state())))
+    }
+
     @Test
     fun twoDirectionsFitOnOneLineWhenFolded() {
         val result = text(

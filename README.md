@@ -97,6 +97,12 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
   - **suivi de la position sans toucher** (widgets automatiques et À proximité), facultatif : le widget
     relit la position à chaque actualisation automatique, donc seulement écran allumé, verrouillé compris.
     Il faut pour cela la permission « Toujours autoriser », demandée uniquement quand on active l'option ;
+  - **tuile des réglages rapides « Prochains passages »**, accessible en tirant le volet, même téléphone
+    verrouillé : l'attente d'abord (« 3 min, puis 9 » / « Métro 13 → Châtillon », ou un sens par ligne).
+    Elle montre le widget choisi dans ses réglages, sinon le premier widget configuré. Elle relit les
+    passages à l'ouverture du volet, demande une actualisation si l'intervalle est écoulé, et la toucher
+    actualise tout de suite. Android 13 et plus permettent de l'ajouter depuis l'application ; un appui
+    long ouvre l'application ;
   - **plage horaire** : « tout le temps », ou certains jours entre deux heures (par exemple le mardi de
     16:00 à 16:30 ; une fin avant le début passe minuit). Pendant la plage, la notification s'affiche et la
     position est suivie ; en dehors, le widget s'actualise comme d'habitude. Une notification balayée

@@ -31,6 +31,11 @@ class Prefs(context: Context) {
         get() = settings.getInt(KEY_REFRESH, DEFAULT_REFRESH_MINUTES)
         set(value) = settings.edit().putInt(KEY_REFRESH, value).apply()
 
+    /** Widget montré par la tuile des réglages rapides, ou -1 pour le premier widget configuré. */
+    var tileWidget: Int
+        get() = settings.getInt(KEY_TILE_WIDGET, -1)
+        set(value) = settings.edit().putInt(KEY_TILE_WIDGET, value).apply()
+
     fun config(widgetId: Int): WidgetConfig? {
         val raw = widgets.getString(configKey(widgetId), null) ?: return null
         return try {
@@ -190,6 +195,7 @@ class Prefs(context: Context) {
         private const val KEY_REFRESH = "refresh_minutes"
         private const val KEY_FAVORITE_LINES = "favorite_lines"
         private const val KEY_PLACE_CHOICES = "place_choices"
+        private const val KEY_TILE_WIDGET = "tile_widget"
         const val DEFAULT_REFRESH_MINUTES = 2
         val REFRESH_CHOICES = listOf(0, 1, 2, 5, 10, 15, 30)
 

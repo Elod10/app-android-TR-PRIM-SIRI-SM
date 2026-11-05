@@ -20,7 +20,6 @@ import fr.trprim.siri.data.Line
 import fr.trprim.siri.data.PositionReader
 import fr.trprim.siri.data.Prefs
 import fr.trprim.siri.ui.MainActivity
-import fr.trprim.siri.ui.UiText
 import java.time.ZonedDateTime
 import kotlin.math.max
 
@@ -96,20 +95,11 @@ object PassageNotifications {
     }
 
     private fun build(context: Context, prefs: Prefs, widgetId: Int): Notification? {
-        val manager = AppWidgetManager.getInstance(context)
-        val format = WidgetProviders.formatOf(manager.getAppWidgetInfo(widgetId)?.provider?.className)
-        val proximity = format == WidgetFormat.PROXIMITE
-        val config = prefs.config(widgetId) ?: return null
-        val now = System.currentTimeMillis()
-        // La taille du widget fixe le nombre de lignes connues du format À proximité.
-        val (width, height) = WidgetRenderer.widgetSize(context, manager.getAppWidgetOptions(widgetId))
-        val model = if (proximity) {
-            WidgetModels.buildProximity(config, prefs.proximity(widgetId), false, width, height, now, night = true)
-        } else {
-            WidgetModels.build(config, prefs.state(widgetId), prefs.hasApiKey, false, width, height, now, format)
-        }
-        val lineTitle = if (proximity) null else UiText.lineTitle(config.line)
-        val content = NotificationContent.build(model, lineTitle) { noticeText(context, it) } ?: return null
+        val widget = WidgetTexts.of(context, prefs, widgetId) ?: return null
+        val config = widget.config
+        val proximity = widget.isProximity
+        val content = NotificationContent.build(widget.model, widget.lineTitle) { WidgetTexts.noticeText(context, it) }
+            ?: return null
 
         createChannel(context)
         val builder = Notification.Builder(context, CHANNEL_ID)
@@ -142,14 +132,6 @@ object PassageNotifications {
             builder.addAction(action(context, R.drawable.ic_stat_location, R.string.notification_locate, locateIntent(context, widgetId)))
         }
         return builder.build()
-    }
-
-    private fun noticeText(context: Context, notice: Notice): String? = when (notice.kind) {
-        NoticeKind.NOT_CONFIGURED -> null
-        NoticeKind.RECONFIGURE -> context.getString(R.string.widget_reconfigure_title)
-        NoticeKind.LOADING -> context.getString(R.string.widget_loading)
-        NoticeKind.NO_DEPARTURE -> context.getString(R.string.widget_no_departure)
-        NoticeKind.ERROR -> notice.detail ?: context.getString(R.string.notification_error)
     }
 
     /** Sans son ni vibration : la notification change chaque minute et ne doit jamais déranger. */
