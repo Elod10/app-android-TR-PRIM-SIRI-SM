@@ -229,11 +229,22 @@ interroge l'API PRIM et met ses réponses en cache.
   présentement mises à disposition aux conditions de
   l'[Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/1-0/).
 - **Mode automatique, avec ou sans clé**, arrêts proches : contient des informations
-  d'[Arrêts et lignes associées](https://data.iledefrance-mobilites.fr/explore/dataset/arrets-lignes/),
-  d'[Arrêts](https://data.iledefrance-mobilites.fr/explore/dataset/arrets/), de
-  [Zones d'arrêts](https://data.iledefrance-mobilites.fr/explore/dataset/zones-d-arrets/) et du
-  [Référentiel des lignes](https://data.iledefrance-mobilites.fr/explore/dataset/referentiel-des-lignes/),
-  aux mêmes conditions. L'index compilé reste sur le téléphone : il n'est pas redistribué.
+  d'[Arrêts et lignes associées](https://data.iledefrance-mobilites.fr/explore/dataset/arrets-lignes/)
+  et du [Référentiel des lignes](https://data.iledefrance-mobilites.fr/explore/dataset/referentiel-des-lignes/),
+  présentement mises à disposition aux conditions de
+  l'[Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/1-0/).
+- **Mode automatique, avec ou sans clé**, regroupement des arrêts proches : Île-de-France Mobilités,
+  [Arrêts](https://data.iledefrance-mobilites.fr/explore/dataset/arrets/) et
+  [Zones d'arrêts](https://data.iledefrance-mobilites.fr/explore/dataset/zones-d-arrets/), données originales
+  téléchargées sur data.iledefrance-mobilites.fr, sous
+  [Licence Ouverte 2.0](https://www.etalab.gouv.fr/licence-ouverte-open-licence). L'écran « Sources et licences »
+  donne la date de dernière mise à jour de l'index sur le téléphone.
+
+Le jeu Arrêts et lignes associées indique les attributions suivantes : INSEE, IGN, NaturalEarth,
+DGCL - BANATIC, MEFR, MAA. L'index compilé reste sur le téléphone : il n'est pas redistribué.
+
+Une mention courte, avec ses liens, figure sur l'accueil, à chaque étape de la configuration et dans la feuille
+des lignes proches. L'écran « Sources et licences » donne le détail par jeu de données.
 
 Cette application n'est pas affiliée à Île-de-France Mobilités. Sans clé, [Tracéo](https://gotraceo.fr) lui
 fournit les données PRIM.

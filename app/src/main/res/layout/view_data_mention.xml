@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mention exigée par la Licence Mobilités (art. 5.4) et l'ODbL (section 4.3) sur les écrans qui montrent des données. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/data_mention"
+    style="@style/Text.Mention"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:text="@string/data_mention" />

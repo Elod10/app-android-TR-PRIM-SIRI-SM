@@ -7,6 +7,7 @@ import android.content.SharedPreferences
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.text.method.LinkMovementMethod
 import android.view.View
 import android.widget.Button
 import android.widget.ImageView
@@ -67,6 +68,7 @@ class MainActivity : Activity() {
         widgetsContainer = findViewById(R.id.widgets_container)
         widgetsEmpty = findViewById(R.id.widgets_empty)
         widgetsTitle = findViewById(R.id.widgets_title)
+        findViewById<TextView>(R.id.data_mention).movementMethod = LinkMovementMethod.getInstance()
 
         findViewById<View>(R.id.open_settings).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))

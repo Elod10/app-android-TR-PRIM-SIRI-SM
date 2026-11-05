@@ -15,6 +15,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
+import android.text.method.LinkMovementMethod
 import android.view.Gravity
 import android.view.View
 import android.view.inputmethod.InputMethodManager
@@ -266,8 +267,9 @@ class ConfigureActivity : Activity() {
         colorSection = findViewById(R.id.color_section)
         swatches = findViewById(R.id.swatches)
         save = findViewById(R.id.save)
+        findViewById<TextView>(R.id.data_mention).movementMethod = LinkMovementMethod.getInstance()
 
-        val header = layoutInflater.inflate(R.layout.list_preview_header, list, false)
+        val header =layoutInflater.inflate(R.layout.list_preview_header, list, false)
         previewBox = header.findViewById(R.id.preview_box)
         previewImage = header.findViewById(R.id.preview_image)
         list.addHeaderView(header, null, false)

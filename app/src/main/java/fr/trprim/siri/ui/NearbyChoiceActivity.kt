@@ -4,6 +4,7 @@ import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.os.Bundle
+import android.text.method.LinkMovementMethod
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -62,6 +63,7 @@ class NearbyChoiceActivity : Activity() {
 
         prefs = Prefs(this)
         status = findViewById(R.id.nearby_status)
+        findViewById<TextView>(R.id.data_mention).movementMethod = LinkMovementMethod.getInstance()
         // Le format À proximité affiche plusieurs lignes : aucune n'est « la » ligne affichée.
         val shownLineId = prefs.config(widgetId)?.line?.id.takeUnless { WidgetProviders.isProximity(this, widgetId) }
         adapter = NearbyAdapter(this, prefs.favoriteLines, shownLineId) { row ->

@@ -259,6 +259,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
+        android:paddingBottom="6dp"
         android:visibility="gone">
 
         <LinearLayout
@@ -288,4 +289,13 @@
             style="@style/ActionPrimary"
             android:text="@string/save_widget" />
     </LinearLayout>
+
+    <include
+        layout="@layout/view_data_mention"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/screen_padding"
+        android:layout_marginTop="6dp"
+        android:layout_marginEnd="@dimen/screen_padding"
+        android:layout_marginBottom="16dp" />
 </LinearLayout>

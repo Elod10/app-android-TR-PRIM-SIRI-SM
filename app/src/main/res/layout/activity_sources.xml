@@ -49,6 +49,14 @@
                 android:textColorLink="@color/text_primary" />
 
             <TextView
+                android:id="@+id/index_date"
+                style="@style/Text.Legal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:visibility="gone" />
+
+            <TextView
                 style="@style/Text.Legal"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
