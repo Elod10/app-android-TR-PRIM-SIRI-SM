@@ -142,11 +142,22 @@ object PassageNotifications {
                 action(context, R.drawable.ic_refresh, R.string.notification_refresh, WidgetRenderer.refreshPendingIntent(context, widgetId)),
             )
         val promoted = Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA && wantsLiveUpdate(prefs, widgetId)
-        // Une Live Update n'accepte pas le style « boîte de réception » : les sens vont à la ligne.
+        // Dépliée : le nom de la ligne et de l'arrêt, un sens par ligne et la source en toutes lettres.
+        // Une Live Update n'accepte pas le style « boîte de réception » : les sens vont alors à la ligne.
         if (content.lines.size > 1 && !promoted) {
-            builder.setStyle(Notification.InboxStyle().also { style -> content.lines.forEach { style.addLine(it) } })
+            builder.setStyle(
+                Notification.InboxStyle()
+                    .setBigContentTitle(content.expandedTitle)
+                    .setSummaryText(content.summary)
+                    .also { style -> content.lines.forEach { style.addLine(it) } },
+            )
         } else {
-            builder.setStyle(Notification.BigTextStyle().bigText(content.lines.joinToString("\n")))
+            builder.setStyle(
+                Notification.BigTextStyle()
+                    .setBigContentTitle(content.expandedTitle)
+                    .setSummaryText(content.summary)
+                    .bigText(content.lines.joinToString("\n")),
+            )
         }
         if (promoted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
             builder.addExtras(Bundle().apply { putBoolean(EXTRA_REQUEST_PROMOTED_ONGOING, true) })
