@@ -145,12 +145,12 @@ class NotificationContentTest {
         val traceo = "stop_area:IDFM:71673"
         val dataAt = now - 5 * 60_000L
         val snapshot = text(config(metro, listOf(traceo)), state(dep("La Défense", 5, stopId = traceo), dataAt = dataAt), hasApiKey = false)!!
-        assertEquals("PRIM via Tracéo ${DepartureFormat.clock(dataAt)}", snapshot.subText)
+        assertEquals("Tracéo ${DepartureFormat.clock(dataAt)}", snapshot.subText)
         assertEquals("PRIM via Tracéo · relevé de ${DepartureFormat.clock(dataAt)}", snapshot.summary)
 
         val fetched = DepartureFormat.clock(now - 60_000L)
         val live = text(config(metro), state(dep("La Défense", 5)))!!
-        assertEquals(fetched, live.subText)
+        assertEquals("PRIM $fetched", live.subText)
         assertEquals("Actualisé à $fetched", live.summary)
 
         val stale = text(config(metro), state(dep("La Défense", 5), error = "Panne"))!!
