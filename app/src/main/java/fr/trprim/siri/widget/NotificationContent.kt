@@ -16,7 +16,7 @@ data class NotificationText(
     val lines: List<String>,
     /** Titre de la notification dépliée : « Métro 7 · Fort d'Aubervilliers ». */
     val expandedTitle: String,
-    /** Heure du relevé, courte, dans l'en-tête de la notification repliée : « PRIM via Tracéo 00:58 ». */
+    /** Heure du relevé, courte, dans l'en-tête de la notification repliée : « Tracéo 00:58 ». */
     val subText: String?,
     /** Source et heure en toutes lettres, dans l'en-tête de la notification dépliée. */
     val summary: String?,
@@ -120,13 +120,13 @@ object NotificationContent {
     private fun compact(name: String): String =
         WidgetContent.compactName(name) { it.length <= COMPACT_NAME_LENGTH }
 
-    /** Heure du relevé, à lire en un coup d'œil : « PRIM via Tracéo 00:58 », « 00:58 », « Non actualisé, 00:58 ». */
+    /** Heure du relevé, à lire en un coup d'œil : « Tracéo 00:58 », ou « PRIM 00:58 » avec une clé ; « Non actualisé, 00:58 ». */
     private fun shortSourceOf(model: WidgetModel): String? {
         val time = model.timeLabel.takeIf { it.isNotEmpty() && !model.refreshing } ?: return null
         return when {
             model.stale -> "Non actualisé, $time"
-            model.sourceDetail != null -> "${model.sourceDetail} $time" + if (model.oldSnapshot) ", ancien" else ""
-            else -> time
+            model.sourceLabel != null -> "${model.sourceLabel} $time" + if (model.oldSnapshot) ", ancien" else ""
+            else -> "PRIM $time"
         }
     }
 
