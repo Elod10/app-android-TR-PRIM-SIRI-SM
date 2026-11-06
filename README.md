@@ -31,7 +31,10 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
     à son arrêt le plus proche. On garde ce qui reste à moins de 400 m de plus que l'arrêt le plus proche,
     sans dépasser 2 km. Les Noctiliens ne comptent que de 0 h 30 à 5 h 30. En tête, une ligne sans passage
     dans l'heure cède sa place à la suivante (3 lignes interrogées au plus) ;
-  - la position n'est jamais lue en arrière-plan : les actualisations automatiques gardent le dernier arrêt.
+  - par défaut, la position n'est lue qu'au toucher du widget ou du bouton « Me localiser » de sa
+    notification : les actualisations automatiques gardent le dernier arrêt. Sur option, et avec la
+    permission facultative « Toujours autoriser », un widget peut la relire à chaque actualisation (voir
+    « Écran de verrouillage »).
 - **Choix de l'arrêt via un menu en 4 étapes** : mode de transport → ligne → arrêt → sens.
   - Modes : Métro, RER, Train/Transilien, Tramway, Bus/Noctilien, et Câble/Funiculaire avec une clé.
   - Lignes et arrêts de Tracéo ou, avec une clé, des référentiels open data IDFM
@@ -80,6 +83,25 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
   d'attente sont recalculés chaque minute sans requête réseau.
 - Plusieurs widgets possibles (un arrêt/sens différent par widget), affichés sur l'accueil de
   l'application et modifiables depuis celui-ci ou par l'option « Reconfigurer » du lanceur (Android 12+).
+- **Écran de verrouillage** : chaque widget a ses réglages, ouverts depuis la ligne « Écran de
+  verrouillage » de sa configuration ou depuis la cloche de sa carte dans l'application (seul accès pour
+  À proximité). La cloche est pleine quand la notification ou le suivi de la position sont actifs.
+  - **widget** : sur les téléphones qui acceptent des widgets sur l'écran de verrouillage (Pixel sous
+    Android 16, par exemple). Tous les formats déclarent la catégorie `keyguard`. Il s'actualise comme sur
+    l'écran d'accueil, puisque l'écran est allumé ;
+  - **notification**, sur tous les téléphones : repliée, elle se lit d'un coup d'œil, l'attente d'abord
+    (« Imminent, puis 3 min » / « Fort d'Aubervilliers → La Courneuve-8-Mai-1945 », avec la source, « Tracéo » ou « PRIM », et l'heure du relevé) ;
+    dépliée, elle donne la ligne, un sens par ligne et la source en toutes lettres. Elle est mise à jour en même temps que le widget, donc sans requête de
+    plus, sans son ni vibration. Ses boutons : « Actualiser » et, pour un widget qui suit la position,
+    « Me localiser », qui relit la position comme un toucher du widget, téléphone verrouillé compris.
+    Android 13 et plus demandent l'autorisation des notifications au moment où on l'active ;
+  - **suivi de la position sans toucher** (widgets automatiques et À proximité), facultatif : le widget
+    relit la position à chaque actualisation automatique, donc seulement écran allumé, verrouillé compris.
+    Il faut pour cela la permission « Toujours autoriser », demandée uniquement quand on active l'option ;
+  - **plage horaire** : « tout le temps », ou certains jours entre deux heures (par exemple le mardi de
+    16:00 à 16:30 ; une fin avant le début passe minuit). Pendant la plage, la notification s'affiche et la
+    position est suivie ; en dehors, le widget s'actualise comme d'habitude. Une notification balayée
+    revient à la plage suivante ; sans plage horaire, la balayer la désactive pour ce widget.
 
 ## Installation
 
@@ -111,6 +133,8 @@ ajoutée et garde son sens.
    bouton « Ajouter un widget » de l'application. Dans les deux cas, la configuration s'ouvre ensuite.
 2. Choisir le mode, la ligne, l'arrêt, le ou les sens et la couleur, puis enregistrer. En mode
    automatique : choisir la ligne proche puis la couleur, tous les sens étant affichés.
+3. Facultatif : la ligne « Écran de verrouillage », au-dessus du bouton d'enregistrement, ou la cloche de la
+   carte du widget, règle sa notification, le suivi de la position et la plage horaire.
 
 ## Confidentialité
 
@@ -118,11 +142,19 @@ ajoutée et garde son sens.
   dans les journaux du serveur, conservés 14 jours. Pas de compte ni d'identifiant d'appareil.
 - **Avec une clé**, le téléphone interroge directement PRIM et l'open data IDFM. La clé n'est jamais
   envoyée à Tracéo.
-- **Position** (mode automatique uniquement) : elle est lue seulement quand on touche le widget, sans la
-  permission « Toujours autoriser ». Les arrêts proches sont cherchés dans un fichier local : la position
-  n'est envoyée à personne. Seuls les lignes et les arrêts retenus partent vers la source de passages, comme
-  pour un widget ordinaire. La dernière position et les lieux où une ligne a été choisie restent sur le
-  téléphone.
+- **Aucune donnée conservée durablement sur un serveur** : l'application n'a ni compte, ni identifiant
+  d'appareil, ni historique en ligne. La seule trace côté serveur est celle décrite plus haut : l'adresse IP
+  dans les journaux de gotraceo.fr, effacés au bout de 14 jours.
+- **Position** (mode automatique uniquement) : par défaut, elle est lue seulement quand on touche le widget
+  ou le bouton « Me localiser » de sa notification, sans la permission « Toujours autoriser ». Les arrêts
+  proches sont cherchés dans un fichier local : la position n'est envoyée à aucun serveur. Seuls les lignes
+  et les arrêts retenus partent vers la source de passages, comme pour un widget ordinaire. La dernière
+  position et les lieux où une ligne a été choisie restent sur le téléphone.
+- **Permission « Toujours autoriser » (position en arrière-plan)** : entièrement facultative. Elle ne sert
+  qu'à ceux qui veulent que leur widget relise la position sans être touché, une option à activer widget
+  par widget. Elle n'est demandée qu'à ce moment-là, et le widget ne s'en sert que pendant ses
+  actualisations automatiques, écran allumé et dans sa plage horaire. Sans elle, tout le reste fonctionne.
+  La position reste sur le téléphone, comme ci-dessus. Le code étant ouvert, chacun peut le vérifier.
 
 ## Détails techniques
 

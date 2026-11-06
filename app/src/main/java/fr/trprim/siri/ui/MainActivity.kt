@@ -10,6 +10,7 @@ import android.os.Looper
 import android.text.method.LinkMovementMethod
 import android.view.View
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -161,6 +162,7 @@ class MainActivity : Activity() {
             primary.setText(if (reconfigure) R.string.main_widget_reconfigure else R.string.main_widget_setup)
             primary.setOnClickListener { openConfiguration() }
         } else {
+            bindNotifyButton(view.findViewById(R.id.item_widget_notify), id)
             view.findViewById<View>(R.id.item_widget_refresh).setOnClickListener { WidgetUpdater.requestRefresh(this, id) }
             val configure = view.findViewById<View>(R.id.item_widget_configure)
             // Le format À proximité n'a rien à régler : il suit la position et le thème du système.
@@ -168,6 +170,19 @@ class MainActivity : Activity() {
             configure.setOnClickListener { openConfiguration() }
         }
         return view
+    }
+
+    /**
+     * La cloche ouvre les réglages du widget pour l'écran de verrouillage. Pleine, elle signale une
+     * notification ou un suivi de la position actifs. C'est le seul accès pour le format À proximité.
+     */
+    private fun bindNotifyButton(button: ImageButton, id: Int) {
+        val active = LockScreenActivity.isActive(this, prefs, id)
+        button.setImageResource(if (active) R.drawable.ic_notification_on else R.drawable.ic_notification_off)
+        val label = getString(R.string.main_widget_lock) + " (" + LockScreenActivity.summary(this, prefs, id) + ")"
+        button.contentDescription = label
+        button.tooltipText = label
+        button.setOnClickListener { startActivity(LockScreenActivity.intent(this, id)) }
     }
 
     /** Un petit widget garde ses textes et ses boutons à côté de lui. */

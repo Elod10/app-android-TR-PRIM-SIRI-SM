@@ -56,6 +56,7 @@
     <string name="main_widget_setup">Configurer</string>
     <string name="main_widget_reconfigure">Reconfigurer</string>
     <string name="main_widget_no_data">Pas encore de données</string>
+    <string name="main_widget_lock">Écran de verrouillage : notification, position et plage horaire</string>
     <string name="main_status_snapshot">Relevé de %1$s</string>
     <string name="main_status_snapshot_old">Relevé ancien de %1$s</string>
     <string name="main_status_updated">Mis à jour à %1$s</string>
@@ -182,4 +183,38 @@
     <string name="nearby_star">Ligne favorite</string>
     <string name="nearby_star_add">Ajouter %1$s aux favoris</string>
     <string name="nearby_star_remove">Retirer %1$s des favoris</string>
+
+    <!-- Notification sur l'écran de verrouillage -->
+    <string name="notify_title">Afficher les passages en notification</string>
+    <string name="notify_denied">Sans l\'autorisation des notifications, le widget ne peut pas s\'afficher sur l\'écran de verrouillage.</string>
+    <string name="notify_blocked">Les notifications de l\'application sont désactivées : activez-les dans les réglages.</string>
+    <string name="notification_channel">Passages sur l\'écran de verrouillage</string>
+    <string name="notification_channel_description">Les prochains passages d\'un widget, mis à jour en même temps que lui. Sans son ni vibration.</string>
+    <string name="notification_refresh">Actualiser</string>
+    <string name="notification_locate">Me localiser</string>
+    <string name="notification_error">Actualisation impossible</string>
+
+    <!-- Réglages d'un widget pour l'écran de verrouillage -->
+    <string name="lock_title">Écran de verrouillage</string>
+    <string name="lock_notify_section">Notification</string>
+    <string name="lock_notify_help">Les passages du widget restent lisibles sans déverrouiller, sur tous les téléphones. La notification est mise à jour avec le widget, sans son ni vibration. La balayer la masque jusqu\'à la prochaine plage horaire, ou la désactive s\'il n\'y en a pas.</string>
+    <string name="lock_follow_section">Position</string>
+    <string name="lock_follow_title">Suivre ma position sans toucher le widget</string>
+    <string name="lock_follow_help">Facultatif. Le widget relit la position à chaque actualisation, écran allumé, y compris verrouillé. Il faut pour cela l\'autorisation de position « Toujours autoriser » ; sans elle, la position n\'est lue qu\'au toucher du widget ou du bouton « Me localiser ». La position reste sur le téléphone et n\'est envoyée à aucun serveur.</string>
+    <string name="lock_follow_missing">Autorisation « Toujours autoriser » manquante : la position n\'est relue qu\'au toucher.</string>
+    <string name="lock_follow_precise">Le suivi a besoin de la position exacte.</string>
+    <string name="lock_follow_allow">Autoriser la position en arrière-plan</string>
+    <string name="lock_follow_settings">Dans les réglages, choisissez « Toujours autoriser » pour la position.</string>
+    <string name="lock_window_section">Plage horaire</string>
+    <string name="lock_window_always">Tout le temps</string>
+    <string name="lock_window_some">Certains jours, à certaines heures</string>
+    <string name="lock_window_from">De %1$s</string>
+    <string name="lock_window_to">À %1$s</string>
+    <string name="lock_window_help">Pendant la plage, la notification s\'affiche et la position est suivie. En dehors, le widget s\'actualise comme d\'habitude. Une fin avant le début passe minuit.</string>
+    <string name="lock_window_one_day">Gardez au moins un jour.</string>
+    <string name="lock_day_on">%1$s, choisi</string>
+    <string name="lock_day_off">%1$s, non choisi</string>
+    <string name="lock_summary_off">Désactivé</string>
+    <string name="lock_summary_notify">Notification</string>
+    <string name="lock_summary_follow">Position suivie</string>
 </resources>

@@ -3,6 +3,7 @@ package fr.trprim.siri.data
 import android.content.Context
 import android.content.SharedPreferences
 import org.json.JSONObject
+import java.time.ZonedDateTime
 
 /** Stockage local : clé API, réglages et configuration/état de chaque widget. */
 class Prefs(context: Context) {
@@ -75,6 +76,53 @@ class Prefs(context: Context) {
         widgets.edit().putString(proximityKey(widgetId), state.toJson().toString()).apply()
     }
 
+    /**
+     * Vrai si le widget a aussi sa notification, visible sur l'écran de verrouillage. Le réglage est
+     * à part de la configuration, que le mode automatique réécrit à chaque changement de ligne.
+     */
+    fun notifies(widgetId: Int): Boolean = widgets.getBoolean(notifyKey(widgetId), false)
+
+    fun setNotifies(widgetId: Int, enabled: Boolean) {
+        widgets.edit().putBoolean(notifyKey(widgetId), enabled).remove(hiddenKey(widgetId)).apply()
+    }
+
+    /** Notification balayée pendant la plage horaire : elle revient à la plage suivante. */
+    fun notifyHiddenUntil(widgetId: Int): Long = widgets.getLong(hiddenKey(widgetId), 0L)
+
+    fun hideNotifyUntil(widgetId: Int, until: Long) {
+        widgets.edit().putLong(hiddenKey(widgetId), until).apply()
+    }
+
+    /**
+     * Vrai si un widget qui suit la position la relit à chaque actualisation, sans qu'on le touche.
+     * Il faut aussi la permission « Toujours autoriser », facultative.
+     */
+    fun followsPosition(widgetId: Int): Boolean = widgets.getBoolean(followKey(widgetId), false)
+
+    fun setFollowsPosition(widgetId: Int, enabled: Boolean) {
+        widgets.edit().putBoolean(followKey(widgetId), enabled).apply()
+    }
+
+    /** Plage horaire de la notification et du suivi de la position ; null pour « tout le temps ». */
+    fun timeWindow(widgetId: Int): TimeWindow? {
+        val raw = widgets.getString(windowKey(widgetId), null) ?: return null
+        return try {
+            TimeWindow.fromJson(JSONObject(raw))
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Vrai si la plage horaire du widget est en cours, ou s'il n'en a pas. */
+    fun inTimeWindow(widgetId: Int, at: ZonedDateTime = ZonedDateTime.now()): Boolean =
+        timeWindow(widgetId)?.isActive(at) ?: true
+
+    fun setTimeWindow(widgetId: Int, window: TimeWindow?) {
+        val editor = widgets.edit().remove(hiddenKey(widgetId))
+        if (window == null) editor.remove(windowKey(widgetId)) else editor.putString(windowKey(widgetId), window.toJson().toString())
+        editor.apply()
+    }
+
     /** Lignes favorites du mode automatique. */
     val favoriteLines: Set<String>
         get() = settings.getStringSet(KEY_FAVORITE_LINES, null)?.toSet().orEmpty()
@@ -120,6 +168,10 @@ class Prefs(context: Context) {
             .remove(stateKey(widgetId))
             .remove(autoKey(widgetId))
             .remove(proximityKey(widgetId))
+            .remove(notifyKey(widgetId))
+            .remove(hiddenKey(widgetId))
+            .remove(followKey(widgetId))
+            .remove(windowKey(widgetId))
             .apply()
     }
 
@@ -145,5 +197,9 @@ class Prefs(context: Context) {
         private fun stateKey(id: Int) = "state_$id"
         private fun autoKey(id: Int) = "auto_$id"
         private fun proximityKey(id: Int) = "proximity_$id"
+        private fun notifyKey(id: Int) = "notify_$id"
+        private fun hiddenKey(id: Int) = "hidden_$id"
+        private fun followKey(id: Int) = "follow_$id"
+        private fun windowKey(id: Int) = "window_$id"
     }
 }
