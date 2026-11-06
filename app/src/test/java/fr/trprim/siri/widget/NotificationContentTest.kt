@@ -62,13 +62,27 @@ class NotificationContentTest {
     }
 
     @Test
-    fun twoDirectionsFitOnOneLineWhenFolded() {
+    fun theWaitComesFirstWhenFolded() {
+        val result = text(
+            config(metro, listOf("IDFM:1")),
+            state(dep("La Courneuve-8-Mai-1945", 0), dep("La Courneuve-8-Mai-1945", 3)),
+        )!!
+        // Repliée, sur l'écran de verrouillage : l'attente se lit sans déplier.
+        assertEquals("Imminent, puis 3 min", result.title)
+        assertEquals("Bastille → La Courneuve-8-Mai-1945", result.text)
+        // Dépliée : la ligne et l'arrêt en titre, le détail du sens.
+        assertEquals("Métro 1 · Bastille", result.expandedTitle)
+        assertEquals(listOf("Vers La Courneuve-8-Mai-1945 : imminent, puis 3 min"), result.lines)
+    }
+
+    @Test
+    fun twoDirectionsKeepTheSameOrderOnBothLines() {
         val result = text(
             config(metro),
             state(dep("Château de Vincennes", 3), dep("La Défense (Grande Arche)", 5, stopId = "IDFM:2"), dep("Château de Vincennes", 9)),
         )!!
-        assertEquals("Métro 1 · Bastille", result.title)
-        assertEquals("Vincennes 3 min · La Défense 5 min", result.text)
+        assertEquals("3 min · 5 min", result.title)
+        assertEquals("Vincennes · La Défense", result.text)
         assertEquals(
             listOf("Vers Château de Vincennes : 3 min, puis 9 min", "Vers La Défense : 5 min"),
             result.lines,
@@ -78,8 +92,8 @@ class NotificationContentTest {
     @Test
     fun trainsGiveTheirPlatformAndDelay() {
         val result = text(config(transilien, listOf("IDFM:1")), state(dep("Paris Nord", 4, delay = 3, platform = "2"), dep("Paris Nord", 19)))!!
-        assertEquals("Vers Paris Nord : 4 min (voie 2, retard 3 min), puis 19 min", result.text)
-        assertEquals(listOf(result.text), result.lines)
+        assertEquals("4 min (voie 2, retard 3 min), puis 19 min", result.title)
+        assertEquals(listOf("Vers Paris Nord : 4 min (voie 2, retard 3 min), puis 19 min"), result.lines)
     }
 
     @Test
@@ -95,13 +109,17 @@ class NotificationContentTest {
         val traceo = "stop_area:IDFM:71673"
         val dataAt = now - 5 * 60_000L
         val snapshot = text(config(metro, listOf(traceo)), state(dep("La Défense", 5, stopId = traceo), dataAt = dataAt), hasApiKey = false)!!
-        assertEquals("PRIM via Tracéo · relevé de ${DepartureFormat.clock(dataAt)}", snapshot.subText)
+        assertEquals("Tracéo ${DepartureFormat.clock(dataAt)}", snapshot.subText)
+        assertEquals("PRIM via Tracéo · relevé de ${DepartureFormat.clock(dataAt)}", snapshot.summary)
 
+        val fetched = DepartureFormat.clock(now - 60_000L)
         val live = text(config(metro), state(dep("La Défense", 5)))!!
-        assertEquals("Actualisé à ${DepartureFormat.clock(now - 60_000L)}", live.subText)
+        assertEquals(fetched, live.subText)
+        assertEquals("Actualisé à $fetched", live.summary)
 
         val stale = text(config(metro), state(dep("La Défense", 5), error = "Panne"))!!
-        assertEquals("Actualisation impossible, données de ${DepartureFormat.clock(now - 60_000L)}", stale.subText)
+        assertEquals("Non actualisé, $fetched", stale.subText)
+        assertEquals("Actualisation impossible, données de $fetched", stale.summary)
     }
 
     @Test
@@ -115,7 +133,9 @@ class NotificationContentTest {
         val state = ProximityState(now - 60_000L, now, listOf(entry))
         val model = WidgetModels.buildProximity(config(metro), state, false, 348f, 192f, now, true)
         val result = NotificationContent.build(model, null) { it.kind.name }!!
-        assertEquals("À proximité", result.title)
+        assertEquals("Métro 1 · 3 min", result.title)
+        assertEquals("vers Vincennes · Nation · 33 m", result.text)
+        assertEquals("À proximité", result.expandedTitle)
         assertEquals(listOf("Métro 1, Nation · 33 m : Vincennes 3 min · La Défense 5 min"), result.lines)
     }
 }

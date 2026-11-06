@@ -89,8 +89,9 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
   - **widget** : sur les téléphones qui acceptent des widgets sur l'écran de verrouillage (Pixel sous
     Android 16, par exemple). Tous les formats déclarent la catégorie `keyguard`. Il s'actualise comme sur
     l'écran d'accueil, puisque l'écran est allumé ;
-  - **notification**, sur tous les téléphones : elle reprend les passages du widget (un sens par ligne, la
-    source et l'heure du relevé). Elle est mise à jour en même temps que le widget, donc sans requête de
+  - **notification**, sur tous les téléphones : repliée, elle se lit d'un coup d'œil, l'attente d'abord
+    (« Imminent, puis 3 min » / « Fort d'Aubervilliers → La Courneuve-8-Mai-1945 », avec l'heure du relevé) ;
+    dépliée, elle donne la ligne, un sens par ligne et la source en toutes lettres. Elle est mise à jour en même temps que le widget, donc sans requête de
     plus, sans son ni vibration. Ses boutons : « Actualiser » et, pour un widget qui suit la position,
     « Me localiser », qui relit la position comme un toucher du widget, téléphone verrouillé compris.
     Android 13 et plus demandent l'autorisation des notifications au moment où on l'active ;

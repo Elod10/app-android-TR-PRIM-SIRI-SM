@@ -128,10 +128,21 @@ object PassageNotifications {
             .addAction(
                 action(context, R.drawable.ic_refresh, R.string.notification_refresh, WidgetRenderer.refreshPendingIntent(context, widgetId)),
             )
+        // Dépliée : le nom de la ligne et de l'arrêt, un sens par ligne et la source en toutes lettres.
         if (content.lines.size > 1) {
-            builder.setStyle(Notification.InboxStyle().also { style -> content.lines.forEach { style.addLine(it) } })
+            builder.setStyle(
+                Notification.InboxStyle()
+                    .setBigContentTitle(content.expandedTitle)
+                    .setSummaryText(content.summary)
+                    .also { style -> content.lines.forEach { style.addLine(it) } },
+            )
         } else {
-            builder.setStyle(Notification.BigTextStyle().bigText(content.lines.first()))
+            builder.setStyle(
+                Notification.BigTextStyle()
+                    .setBigContentTitle(content.expandedTitle)
+                    .setSummaryText(content.summary)
+                    .bigText(content.lines.first()),
+            )
         }
         if (!proximity) {
             builder.setLargeIcon(badgeIcon(context, config.line))
