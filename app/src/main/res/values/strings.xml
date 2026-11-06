@@ -213,9 +213,15 @@
     <string name="lock_window_help">Pendant la plage, la notification s\'affiche et la position est suivie. En dehors, le widget s\'actualise comme d\'habitude. Une fin avant le début passe minuit.</string>
     <string name="lock_window_one_day">Gardez au moins un jour.</string>
     <string name="lock_tile_section">Réglages rapides</string>
-    <string name="lock_tile_this">La tuile « Prochains passages » montre ce widget</string>
-    <string name="lock_tile_other">La tuile « Prochains passages » montre un autre widget</string>
-    <string name="lock_tile_help">La tuile s\'ouvre en tirant le volet, même téléphone verrouillé. Elle montre le prochain passage et se met à jour à l\'ouverture du volet ; la toucher actualise les passages. Pour l\'ajouter, modifiez les réglages rapides.</string>
+    <string name="lock_tile_this">La tuile « Prochains passages » montrera ce widget</string>
+    <string name="lock_tile_this_added">La tuile est dans vos réglages rapides et montre ce widget</string>
+    <string name="lock_tile_other">La tuile « Prochains passages » montre un autre widget : %1$s</string>
+    <string name="lock_tile_other_added">La tuile de vos réglages rapides montre un autre widget : %1$s</string>
+    <string name="lock_tile_none">La tuile « Prochains passages » ne montre aucun widget</string>
+    <string name="lock_tile_help">La tuile s\'ouvre en tirant le volet, même téléphone verrouillé. Elle se met à jour à l\'ouverture du volet ; la toucher actualise les passages. Petite, elle n\'affiche que le prochain passage. Pour l\'ajouter, modifiez les réglages rapides.</string>
+    <string name="lock_tile_help_added">La tuile s\'ouvre en tirant le volet, même téléphone verrouillé ; la toucher actualise les passages. Petite, elle n\'affiche que le prochain passage. Android ne permet pas à une application de retirer sa tuile : pour la retirer, modifiez les réglages rapides.</string>
+    <string name="lock_tile_already">La tuile est déjà dans vos réglages rapides</string>
+    <string name="lock_tile_add_failed">Android n\'a pas pu ajouter la tuile : ajoutez-la en modifiant les réglages rapides</string>
     <string name="lock_tile_choose">Montrer ce widget dans la tuile</string>
     <string name="lock_tile_add">Ajouter la tuile aux réglages rapides</string>
     <string name="tile_label">Prochains passages</string>
@@ -225,6 +231,7 @@
     <string name="lock_summary_off">Désactivé</string>
     <string name="lock_summary_notify">Notification</string>
     <string name="lock_summary_follow">Position suivie</string>
+    <string name="lock_summary_tile">Tuile</string>
     <string name="lock_summary_live">Notification en Live Update</string>
     <string name="lock_live_title">Mettre en avant (Live Update)</string>
     <string name="lock_live_help">Android 16 : pendant la plage horaire, la notification passe en tête de l\'écran de verrouillage et le prochain passage s\'affiche dans une pastille de la barre d\'état. Android réserve cette mise en avant aux moments limités dans le temps : elle demande donc une plage horaire.</string>

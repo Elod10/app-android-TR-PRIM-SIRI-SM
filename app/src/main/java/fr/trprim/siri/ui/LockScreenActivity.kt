@@ -2,6 +2,7 @@ package fr.trprim.siri.ui
 
 import android.Manifest
 import android.app.Activity
+import android.app.StatusBarManager
 import android.app.TimePickerDialog
 import android.appwidget.AppWidgetManager
 import android.content.ActivityNotFoundException
@@ -50,14 +51,18 @@ class LockScreenActivity : Activity() {
         fun intent(context: Context, widgetId: Int): Intent =
             Intent(context, LockScreenActivity::class.java).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
 
-        /** Vrai si le widget a sa notification ou suit la position : la cloche de sa carte est pleine. */
+        /** Vrai si le widget a sa notification, suit la position ou est dans la tuile : la cloche de sa carte est pleine. */
         fun isActive(context: Context, prefs: Prefs, widgetId: Int): Boolean =
             (prefs.notifies(widgetId) && PassageNotifications.canPost(context)) ||
-                (prefs.followsPosition(widgetId) && PositionReader(context).hasBackgroundAccess)
+                (prefs.followsPosition(widgetId) && PositionReader(context).hasBackgroundAccess) ||
+                QuickTile.shows(context, widgetId)
 
-        /** « Notification · Position suivie · Mardi · 16:00 – 16:30 », ou « Désactivé ». */
+        /** « Tuile · Notification · Position suivie · Mardi · 16:00 – 16:30 », ou « Désactivé ». */
         fun summary(context: Context, prefs: Prefs, widgetId: Int): String {
             val parts = ArrayList<String>()
+            // La plage horaire ne concerne pas la tuile : elle est nommée en premier.
+            val tile = QuickTile.shows(context, widgetId)
+            if (tile) parts += context.getString(R.string.lock_summary_tile)
             if (prefs.notifies(widgetId) && PassageNotifications.canPost(context)) {
                 val live = PassageNotifications.wantsLiveUpdate(prefs, widgetId) && PassageNotifications.canPromote(context)
                 parts += context.getString(if (live) R.string.lock_summary_live else R.string.lock_summary_notify)
@@ -66,7 +71,7 @@ class LockScreenActivity : Activity() {
                 parts += context.getString(R.string.lock_summary_follow)
             }
             if (parts.isEmpty()) return context.getString(R.string.lock_summary_off)
-            prefs.timeWindow(widgetId)?.let { parts += it.label() }
+            if (parts.size > 1 || !tile) prefs.timeWindow(widgetId)?.let { parts += it.label() }
             return parts.joinToString(" · ")
         }
     }
@@ -152,18 +157,46 @@ class LockScreenActivity : Activity() {
         val add = findViewById<View>(R.id.tile_add)
         add.visibility = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) View.VISIBLE else View.GONE
         add.setOnClickListener {
-            // Android affiche sa propre demande ; une tuile déjà ajoutée n'est pas proposée deux fois.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) QuickTile.requestAdd(this, mainExecutor) { }
+            // Android affiche sa propre demande, sauf si la tuile est déjà là : il ne le dit qu'au rappel.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) QuickTile.requestAdd(this, mainExecutor, ::onTileRequest)
         }
         renderTile()
     }
 
     // --- Tuile des réglages rapides ---------------------------------------------------------------
 
+    /**
+     * Où en est la tuile : ajoutée ou non, et quel widget elle montre. Android ne permet pas à une
+     * application de retirer sa tuile ; l'écran explique comment le faire.
+     */
     private fun renderTile() {
-        val shown = QuickTile.widgetId(this) == widgetId
-        findViewById<TextView>(R.id.tile_status).setText(if (shown) R.string.lock_tile_this else R.string.lock_tile_other)
+        val added = prefs.tileAdded
+        val shownId = QuickTile.widgetId(this)
+        val shown = shownId == widgetId
+        findViewById<TextView>(R.id.tile_status).text = when {
+            shown -> getString(if (added) R.string.lock_tile_this_added else R.string.lock_tile_this)
+            shownId != null -> getString(if (added) R.string.lock_tile_other_added else R.string.lock_tile_other, widgetName(shownId))
+            else -> getString(R.string.lock_tile_none)
+        }
+        findViewById<TextView>(R.id.tile_help).setText(if (added) R.string.lock_tile_help_added else R.string.lock_tile_help)
         findViewById<View>(R.id.tile_choose).visibility = if (shown) View.GONE else View.VISIBLE
+        findViewById<View>(R.id.tile_add).visibility =
+            if (!added && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) View.VISIBLE else View.GONE
+    }
+
+    private fun onTileRequest(result: Int) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        when (result) {
+            StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED -> prefs.tileAdded = true
+            StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED -> {
+                prefs.tileAdded = true
+                Toast.makeText(this, R.string.lock_tile_already, Toast.LENGTH_SHORT).show()
+            }
+            // Refusée par l'usager : rien à dire.
+            StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_NOT_ADDED -> Unit
+            else -> Toast.makeText(this, R.string.lock_tile_add_failed, Toast.LENGTH_LONG).show()
+        }
+        if (!isDestroyed) renderTile()
     }
 
     override fun onResume() {
@@ -177,6 +210,8 @@ class LockScreenActivity : Activity() {
         }
         renderLive()
         renderFollow()
+        // La tuile a pu être ajoutée ou retirée depuis le volet.
+        renderTile()
     }
 
     /** Activer la notification demande d'abord l'autorisation, si Android l'exige. */
@@ -188,10 +223,10 @@ class LockScreenActivity : Activity() {
         }
     }
 
-    private fun widgetName(): String {
-        val provider = AppWidgetManager.getInstance(this).getAppWidgetInfo(widgetId)?.provider?.className
+    private fun widgetName(id: Int = widgetId): String {
+        val provider = AppWidgetManager.getInstance(this).getAppWidgetInfo(id)?.provider?.className
         val name = WidgetProviders.entryOf(provider)?.let { getString(it.nameRes) } ?: getString(R.string.widget_name)
-        val config = prefs.config(widgetId) ?: return name
+        val config = prefs.config(id) ?: return name
         if (WidgetProviders.formatOf(provider) == WidgetFormat.PROXIMITE) return name
         return listOf(name, UiText.lineTitle(config.line), config.stop.name).joinToString(" · ")
     }

@@ -98,6 +98,16 @@ class NotificationContentTest {
     }
 
     @Test
+    fun theTileIconShowsTheVeryNextDeparture() {
+        val two = tile(config(metro), state(dep("Château de Vincennes", 7), dep("La Défense (Grande Arche)", 2, stopId = "IDFM:2")))!!
+        assertEquals(TileIcon("2", "min"), two.icon)
+        assertEquals(TileIcon("<1", "min"), NotificationContent.tileIcon(model(config(metro), state(dep("La Défense", 0)))))
+        // Sans passage, la tuile garde l'icône de l'application.
+        assertNull(tile(config(metro), state())!!.icon)
+        assertNull(tile(config(metro), null)!!.icon)
+    }
+
+    @Test
     fun theWaitComesFirstWhenFolded() {
         val result = text(
             config(metro, listOf("IDFM:1")),

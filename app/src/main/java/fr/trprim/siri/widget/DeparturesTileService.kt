@@ -26,11 +26,27 @@ import java.util.function.Consumer
  * Elle montre un widget choisi dans l'application, ou le premier widget configuré. Elle n'est liée
  * qu'à l'ouverture du panneau : elle relit alors les passages en cache, avec des temps d'attente à
  * jour, et demande une actualisation si l'intervalle est écoulé. La toucher actualise tout de suite.
+ *
+ * Son icône est le prochain passage : c'est tout ce que montre une petite tuile.
  */
 class DeparturesTileService : TileService() {
 
+    /** Android ne dit pas aux applications quelles tuiles sont affichées : on retient ce qu'il signale ici. */
+    override fun onTileAdded() {
+        super.onTileAdded()
+        Prefs(this).tileAdded = true
+    }
+
+    override fun onTileRemoved() {
+        Prefs(this).tileAdded = false
+        super.onTileRemoved()
+    }
+
     override fun onStartListening() {
         super.onStartListening()
+        // Une tuile ajoutée avant que l'application ne le retienne se signale à l'ouverture du volet.
+        val prefs = Prefs(this)
+        if (!prefs.tileAdded) prefs.tileAdded = true
         QuickTile.listening = WeakReference(this)
         show()
         val id = QuickTile.widgetId(this) ?: return
@@ -62,7 +78,8 @@ class DeparturesTileService : TileService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             tile.subtitle = text?.subtitle ?: getString(R.string.tile_empty)
         }
-        tile.icon = Icon.createWithResource(this, R.drawable.ic_stat_departures)
+        tile.icon = text?.icon?.let { TileIconRenderer.render(this, it) }
+            ?: Icon.createWithResource(this, R.drawable.ic_stat_departures)
         tile.state = if (text?.active == true) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         tile.updateTile()
     }
@@ -101,6 +118,10 @@ object QuickTile {
         val widget = WidgetTexts.of(context, Prefs(context), id) ?: return null
         return NotificationContent.tile(widget.model, widget.lineTitle) { WidgetTexts.noticeText(context, it) }
     }
+
+    /** Vrai si la tuile est dans les réglages rapides et montre ce widget. */
+    fun shows(context: Context, widgetId: Int): Boolean =
+        Prefs(context).tileAdded && widgetId(context) == widgetId
 
     /** Redessine la tuile si le panneau est ouvert ; sinon elle sera relue à la prochaine ouverture. */
     fun update(context: Context, widgetId: Int) {

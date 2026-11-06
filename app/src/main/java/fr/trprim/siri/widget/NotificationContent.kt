@@ -31,7 +31,15 @@ data class TileText(
     val description: String,
     /** Faux quand la tuile n'a pas de passage à montrer : elle apparaît alors éteinte. */
     val active: Boolean,
+    /** Prochain passage dessiné à la place de l'icône, ou null pour l'icône de l'application. */
+    val icon: TileIcon? = null,
 )
+
+/**
+ * Icône de la tuile : le prochain passage, seul contenu visible quand la tuile est petite.
+ * « 24 » au-dessus de « min », « <1 » pour un passage imminent, ou une heure seule, « 17:05 ».
+ */
+data class TileIcon(val value: String, val unit: String?)
 
 /** Met en mots le contenu d'un widget, pour sa notification et pour la tuile des réglages rapides. */
 object NotificationContent {
@@ -123,7 +131,10 @@ object NotificationContent {
      * Texte de la tuile des réglages rapides : deux lignes courtes, l'attente en premier.
      * Un sens : « 3 min, puis 9 » / « Métro 13 → Châtillon ». Deux sens : un sens par ligne.
      */
-    fun tile(model: WidgetModel, lineTitle: String?, noticeText: (Notice) -> String?): TileText? {
+    fun tile(model: WidgetModel, lineTitle: String?, noticeText: (Notice) -> String?): TileText? =
+        tileText(model, lineTitle, noticeText)?.copy(icon = tileIcon(model))
+
+    private fun tileText(model: WidgetModel, lineTitle: String?, noticeText: (Notice) -> String?): TileText? {
         val full = build(model, lineTitle, noticeText) ?: return null
         val description = (listOf(full.expandedTitle) + full.lines).joinToString(". ")
         val line = lineTitle ?: model.line?.label
@@ -158,18 +169,34 @@ object NotificationContent {
      * Null quand il n'y a pas de passage à annoncer.
      */
     fun chip(model: WidgetModel): String? {
-        if (model.notice != null) return null
-        val first = if (model.format == WidgetFormat.PROXIMITE) {
-            model.proximity.firstNotNullOfOrNull { it.directions.firstOrNull()?.first }
-        } else {
-            model.groups.mapNotNull { group -> group.passages.firstOrNull { it.kind != WaitKind.CANCELLED } }
-                .minByOrNull { it.railMinutes }
-        } ?: return null
+        val first = nextPassage(model) ?: return null
         return when (first.kind) {
             WaitKind.MINUTES -> "${max(0, first.minutes)} min"
             WaitKind.CLOCK -> first.clock
             WaitKind.IMMINENT, WaitKind.AT_STOP -> "<1 min"
             WaitKind.CANCELLED -> null
+        }
+    }
+
+    /** Prochain passage écrit dans l'icône de la tuile. Null quand il n'y a pas de passage à annoncer. */
+    fun tileIcon(model: WidgetModel): TileIcon? {
+        val first = nextPassage(model) ?: return null
+        return when (first.kind) {
+            WaitKind.MINUTES -> TileIcon("${max(0, first.minutes)}", "min")
+            WaitKind.CLOCK -> TileIcon(first.clock, null)
+            WaitKind.IMMINENT, WaitKind.AT_STOP -> TileIcon("<1", "min")
+            WaitKind.CANCELLED -> null
+        }
+    }
+
+    /** Le passage le plus proche, tous sens confondus ; pour À proximité, celui de la première ligne. */
+    private fun nextPassage(model: WidgetModel): Passage? {
+        if (model.notice != null) return null
+        return if (model.format == WidgetFormat.PROXIMITE) {
+            model.proximity.firstNotNullOfOrNull { it.directions.firstOrNull()?.first }
+        } else {
+            model.groups.mapNotNull { group -> group.passages.firstOrNull { it.kind != WaitKind.CANCELLED } }
+                .minByOrNull { it.railMinutes }
         }
     }
 
