@@ -84,7 +84,7 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
   en moins de 1,5 seconde ouvrent la liste complète. Deux lignes tiennent en 4×2, trois en 4×3. Une ligne
   sans passage dans l'heure laisse sa place à la suivante, sauf si elle est favorite ou choisie à cet endroit.
 - **Actualisation** : toucher le widget l'actualise immédiatement ; actualisation automatique
-  configurable (manuelle, 1, 2, 5, 10, 15 ou 30 min) **uniquement écran allumé** (alarme exacte mais
+  configurable (manuelle, 1, 2, 5 ou 10 min) **uniquement écran allumé** (alarme exacte mais
   non réveillante : aucune requête quand le téléphone est en veille). Sans clé, le choix de 1 min n'est
   pas proposé, car le cache de Tracéo ne change pas plus vite ; il revient avec une clé. Les temps
   d'attente sont recalculés chaque minute sans requête réseau.

@@ -68,7 +68,7 @@ class Prefs(context: Context) {
 
     /** Intervalle d'actualisation automatique en minutes (0 = manuel uniquement). */
     var refreshMinutes: Int
-        get() = settings.getInt(KEY_REFRESH, DEFAULT_REFRESH_MINUTES)
+        get() = offeredRefresh(settings.getInt(KEY_REFRESH, DEFAULT_REFRESH_MINUTES))
         set(value) = settings.edit().putInt(KEY_REFRESH, value).apply()
 
     /** Widget montré par la tuile des réglages rapides, ou -1 pour le premier widget configuré. */
@@ -255,7 +255,10 @@ class Prefs(context: Context) {
         private const val KEY_REFRESH_OFFSET = "refresh_offset_ms"
         private val usageLock = Any()
         const val DEFAULT_REFRESH_MINUTES = 2
-        val REFRESH_CHOICES = listOf(0, 1, 2, 5, 10, 15, 30)
+        val REFRESH_CHOICES = listOf(0, 1, 2, 5, 10)
+
+        /** Un choix de 15 ou 30 minutes, qui n'est plus proposé, devient le plus long qui reste. */
+        fun offeredRefresh(stored: Int): Int = minOf(stored, REFRESH_CHOICES.last())
 
         private fun configKey(id: Int) = "config_$id"
         private fun stateKey(id: Int) = "state_$id"
