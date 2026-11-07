@@ -34,8 +34,14 @@ object WidgetPinner {
         return manager.requestPinAppWidget(ComponentName(context, provider), null, callback)
     }
 
+    /**
+     * Toujours une nouvelle tâche : ces Intents ne diffèrent que par l'identifiant du widget (un extra),
+     * et Android ramènerait sinon au premier plan la configuration d'un widget précédent, laissée
+     * ouverte, au lieu d'ouvrir celle du nouveau.
+     */
     fun configureIntent(context: Context): Intent =
-        Intent(context, ConfigureActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        Intent(context, ConfigureActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
 
     private fun mutableFlag(): Int =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0

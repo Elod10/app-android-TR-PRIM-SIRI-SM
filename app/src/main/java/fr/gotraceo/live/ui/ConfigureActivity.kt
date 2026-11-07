@@ -198,6 +198,9 @@ class ConfigureActivity : Activity() {
             finish()
             return
         }
+        // Une configuration d'un autre widget, quittée sans enregistrer, est abandonnée : elle ne doit
+        // pas réapparaître à la place de celle-ci, ni derrière elle une fois celle-ci enregistrée.
+        openScreens.values.mapNotNull { it.get() }.filter { !it.isFinishing }.forEach { it.finish() }
         openScreens[widgetId] = WeakReference(this)
 
         setContentView(R.layout.activity_configure)
@@ -835,27 +838,26 @@ class ConfigureActivity : Activity() {
     }
 
     /**
-     * Coche les sens déjà choisis lors d'une précédente configuration du même arrêt. Pour un nouveau
-     * widget, coche « Tous les sens » si son format affiche les deux sens, ou le seul sens proposé.
+     * Coche les sens déjà choisis lors d'une précédente configuration du même arrêt. Sinon, coche
+     * toujours un choix, pour que « Enregistrer » ne reste jamais grisé sans raison visible :
+     * le premier sens pour un format à un seul sens, « Tous les sens » pour les autres.
      */
     private fun preselect(allItem: RowItem, optionItems: List<RowItem>, l: Line, s: Stop) {
         val previous = existing?.takeIf { it.line.id == l.id && it.stop.stopIds == s.stopIds }?.directions
         val wasAllDirections = previous != null && s.stopIds.all { previous[it]?.isEmpty() == true }
-        if (previous == null || wasAllDirections) {
-            when {
-                oneDirectionOnly -> optionItems.singleOrNull()?.checked = true
-                wasAllDirections || chosenFormat?.showsBothDirections == true ||
-                    directionOptions.none { it.key != null } -> allItem.checked = true
+        if (previous != null && !wasAllDirections) {
+            optionItems.forEach { item ->
+                val opt = item.payload as DirectionOption
+                val keys = previous[opt.stopId] ?: return@forEach
+                val key = opt.key
+                item.checked = keys.isEmpty() || (key != null && keys.any { normalizeLabel(it) == normalizeLabel(key) })
             }
-            return
+            if (oneDirectionOnly) optionItems.filter { it.checked }.drop(1).forEach { it.checked = false }
         }
-        optionItems.forEach { item ->
-            val opt = item.payload as DirectionOption
-            val keys = previous[opt.stopId] ?: return@forEach
-            val key = opt.key
-            item.checked = keys.isEmpty() || (key != null && keys.any { normalizeLabel(it) == normalizeLabel(key) })
+        // Rien à reprendre (nouveau widget, tous les sens, ou sens disparus depuis) : choix par défaut.
+        if (optionItems.none { it.checked }) {
+            if (oneDirectionOnly) optionItems.firstOrNull()?.checked = true else allItem.checked = true
         }
-        if (oneDirectionOnly) optionItems.filter { it.checked }.drop(1).forEach { it.checked = false }
     }
 
     private fun toggleDirection(item: RowItem) {
@@ -873,10 +875,13 @@ class ConfigureActivity : Activity() {
         renderPreview()
     }
 
+    /**
+     * Sans choix, le bouton paraît grisé mais reste actif : le toucher explique ce qui manque,
+     * au lieu de ne rien faire.
+     */
     private fun updateSaveEnabled() {
-        val enabled = adapter.items.any { it.checked }
-        save.isEnabled = enabled
-        save.alpha = if (enabled) 1f else DISABLED_ALPHA
+        save.isEnabled = true
+        save.alpha = if (adapter.items.any { it.checked }) 1f else DISABLED_ALPHA
     }
 
     /** La configuration en cours de réglage ; sans sens coché, tous les sens. */
@@ -893,7 +898,12 @@ class ConfigureActivity : Activity() {
 
     private fun saveConfig() {
         if (adapter.items.none { it.checked }) {
-            Toast.makeText(this, R.string.direction_select_one, Toast.LENGTH_SHORT).show()
+            val message = when {
+                adapter.items.none { it.checkable } -> R.string.direction_none_found
+                oneDirectionOnly -> R.string.direction_select_single
+                else -> R.string.direction_select_one
+            }
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
             return
         }
         prefs.saveConfig(directionConfig() ?: return)
