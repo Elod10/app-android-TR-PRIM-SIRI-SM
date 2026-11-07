@@ -138,7 +138,7 @@ class LegalMentionsTest {
         assertTrue(licence.contains("redistribuer et le modifier"))
         assertTrue(licence.contains("sans aucune garantie"))
         assertLinksTo(licence, "https://www.gnu.org/licenses/gpl-3.0.html")
-        assertLinksTo(licence, "https://github.com/Elod10/prochains-passages-IDF")
+        assertLinksTo(licence, "https://github.com/Elod10/traceo-live")
         val xml = File("src/main/res/layout/activity_sources.xml").readText()
         assertTrue(xml.contains("@string/sources_code_licence"))
         val code = File("src/main/java/fr/gotraceo/live/ui/SourcesActivity.kt").readText()
