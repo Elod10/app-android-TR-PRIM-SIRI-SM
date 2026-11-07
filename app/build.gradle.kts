@@ -12,15 +12,15 @@ plugins {
 val releaseKeystore: String? = System.getenv("RELEASE_KEYSTORE_FILE")?.takeIf { it.isNotBlank() }
 
 android {
-    namespace = "fr.trprim.siri"
-    compileSdk = 35
+    namespace = "fr.gotraceo.live"
+    compileSdk = 36
 
     defaultConfig {
-        applicationId = "fr.trprim.siri"
+        applicationId = "fr.gotraceo.live"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 13
-        versionName = "1.7.3"
+        targetSdk = 36
+        versionCode = 16
+        versionName = "2.0.0"
     }
 
     signingConfigs {

@@ -174,6 +174,37 @@
                     android:contentDescription="@null"
                     android:src="@drawable/ic_chevron" />
             </LinearLayout>
+
+            <!-- Le bouton d'abord, l'explication dessous : les réglages tiennent sur un écran. -->
+            <FrameLayout
+                android:id="@+id/open_support"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="18dp"
+                android:background="@drawable/bg_action_primary"
+                android:clickable="true"
+                android:focusable="true">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:drawableStart="@drawable/ic_coffee"
+                    android:drawablePadding="8dp"
+                    android:drawableTint="@color/on_action_primary"
+                    android:fontFamily="@font/barlow_semicondensed_semibold"
+                    android:gravity="center_vertical"
+                    android:text="@string/support_title"
+                    android:textColor="@color/on_action_primary"
+                    android:textSize="18sp" />
+            </FrameLayout>
+
+            <TextView
+                style="@style/Text.Help"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/support_body" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

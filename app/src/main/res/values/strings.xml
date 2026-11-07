@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Temps réel IDF</string>
+    <string name="app_name">Tracéo Live</string>
     <string name="back">Retour</string>
 
     <!-- Widget -->
@@ -48,9 +48,9 @@
     <!-- Accueil -->
     <string name="main_widgets_title">Mes widgets</string>
     <string name="main_empty_title">Aucun widget pour l\'instant</string>
-    <string name="main_empty_body">Ajoutez-en un ici, ou depuis la liste des widgets de votre lanceur (Temps réel IDF). Les passages s\'affichent sans compte et sans clé.</string>
+    <string name="main_empty_body">Ajoutez-en un ici, ou depuis la liste des widgets de votre lanceur (Tracéo Live). Les passages s\'affichent sans compte et sans clé.</string>
     <string name="main_add_widget">Ajouter un widget</string>
-    <string name="main_add_widget_unsupported">Votre lanceur ne permet pas l\'ajout direct : faites un appui long sur l\'écran d\'accueil › Widgets › Temps réel IDF.</string>
+    <string name="main_add_widget_unsupported">Votre lanceur ne permet pas l\'ajout direct : faites un appui long sur l\'écran d\'accueil › Widgets › Tracéo Live.</string>
     <string name="main_widget_configure">Modifier ce widget</string>
     <string name="main_widget_refresh">Actualiser ce widget</string>
     <string name="main_widget_setup">Configurer</string>
@@ -78,7 +78,6 @@
     <string name="settings_key_add">Ajouter une clé API PRIM</string>
     <string name="settings_key_edit">Clé API PRIM</string>
     <string name="settings_key_add_sub">Facultatif : la voie, le câble et le funiculaire</string>
-    <string name="settings_key_edit_sub">Enregistrée : la voie, le câble et le funiculaire</string>
     <string name="main_refresh_title">Actualisation automatique</string>
     <string name="main_refresh_help">Seulement quand l\'écran est allumé. Touchez un widget pour l\'actualiser tout de suite. Sans clé, l\'intervalle le plus court est de 2 minutes : le cache de Tracéo ne change pas plus vite.</string>
     <string name="main_refresh_help_key">Seulement quand l\'écran est allumé. Touchez un widget pour l\'actualiser tout de suite. Chaque actualisation consomme une requête par point d\'arrêt sur votre quota PRIM.</string>
@@ -86,6 +85,13 @@
     <string name="refresh_every_minute">Chaque minute</string>
     <string name="refresh_every_n">Toutes les %1$d minutes</string>
     <string name="main_sources_title">Sources et licences</string>
+
+    <!-- Soutien facultatif -->
+    <string name="support_short">Soutenir</string>
+    <string name="support_short_description">Soutenir Tracéo : don facultatif, ouvre le navigateur</string>
+    <string name="support_title">Soutenir Tracéo</string>
+    <string name="support_body">Don facultatif sur Buy Me a Coffee, dans votre navigateur. Tracéo Live reste gratuite et sans publicité, que vous donniez ou non.</string>
+    <string name="support_no_browser">Aucun navigateur ne peut ouvrir la page de soutien.</string>
 
     <!-- Clé API -->
     <string name="main_key_title">Clé API PRIM</string>
@@ -108,6 +114,21 @@
     <string name="main_key_ok">Clé valide : l\'API PRIM répond</string>
     <string name="main_key_empty">Saisissez d\'abord une clé</string>
 
+    <!-- Quota de la clé PRIM -->
+    <string name="key_usage_title">Requêtes PRIM aujourd\'hui</string>
+    <string name="key_usage_value">%1$s sur %2$s</string>
+    <string name="key_usage_help">Compté à chaque réponse de PRIM, qui indique aussi ce qu\'il reste à la clé pour la journée. Vous êtes prévenu à 80 % du quota ; au-delà, les widgets passent par Tracéo jusqu\'au lendemain.</string>
+    <string name="key_usage_exhausted">Quota du jour atteint : les widgets passent par Tracéo jusqu\'à demain. Ceux créés avec la clé, que Tracéo ne connaît pas, reprendront demain.</string>
+    <string name="settings_key_usage">Enregistrée · %1$s requêtes sur %2$s aujourd\'hui</string>
+    <string name="main_source_prim_paused">PRIM via Tracéo, quota atteint</string>
+    <string name="main_source_prim_paused_detail">Votre clé a épuisé son quota du jour : les widgets passent par le cache de Tracéo jusqu\'à demain, sans la voie.</string>
+    <string name="quota_channel">Quota de la clé PRIM</string>
+    <string name="quota_channel_description">Prévient quand la clé PRIM approche de son quota du jour, puis quand les widgets passent par Tracéo.</string>
+    <string name="quota_warning_title">Clé PRIM : 80 % du quota du jour</string>
+    <string name="quota_warning_body">%1$s requêtes sur %2$s aujourd\'hui. Une fois le quota atteint, les widgets passeront par Tracéo jusqu\'à demain.</string>
+    <string name="quota_fallback_title">Quota PRIM du jour atteint</string>
+    <string name="quota_fallback_body">Les widgets passent par le cache de Tracéo jusqu\'à demain : relevé toutes les 2 minutes, sans la voie. Ceux créés avec la clé reprendront demain.</string>
+
     <!-- Mention courte des écrans qui montrent des données -->
     <string name="data_mention">Contient des informations de <a href="https://prim.iledefrance-mobilites.fr/">PRIM</a>, présentement mises à disposition aux conditions de la <a href="https://cloud.fabmob.io/s/eYWWJBdM3fQiFNm">Licence Mobilités</a> et de l\'<a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL</a>.</string>
 
@@ -117,6 +138,8 @@
     <string name="main_about_prim">Données © Île-de-France Mobilités. Avec votre clé, le téléphone interroge directement PRIM.\n\nPassages : contient des informations de <a href="https://prim.iledefrance-mobilites.fr/fr/apis/idfm-ivtr-requete_unitaire">Prochains passages (PRIM)</a>, présentement mises à disposition aux conditions de la <a href="https://cloud.fabmob.io/s/eYWWJBdM3fQiFNm">Licence Mobilités</a> et de l\'<a href="https://opendatacommons.org/licenses/odbl/1-0/">Open Database License (ODbL)</a>.\n\nLignes et arrêts : contient des informations de <a href="https://data.iledefrance-mobilites.fr/explore/dataset/referentiel-des-lignes/">Référentiel des lignes</a> et d\'<a href="https://data.iledefrance-mobilites.fr/explore/dataset/arrets-lignes/">Arrêts et lignes associées</a> (attributions : INSEE, IGN, NaturalEarth, DGCL - BANATIC, MEFR, MAA), présentement mises à disposition aux conditions de l\'<a href="https://opendatacommons.org/licenses/odbl/1-0/">Open Database License (ODbL)</a>.\n\nRegroupement des arrêts proches : Île-de-France Mobilités, <a href="https://data.iledefrance-mobilites.fr/explore/dataset/arrets/">Arrêts</a> et <a href="https://data.iledefrance-mobilites.fr/explore/dataset/zones-d-arrets/">Zones d\'arrêts</a>, données originales téléchargées sur data.iledefrance-mobilites.fr, sous <a href="https://www.etalab.gouv.fr/licence-ouverte-open-licence">Licence Ouverte 2.0</a>.\n\nSans clé, l\'application passe par le cache de <a href="https://gotraceo.fr">Tracéo (gotraceo.fr)</a>, qui interroge PRIM.</string>
     <string name="sources_index_date">Dernière mise à jour de l\'index des arrêts sur ce téléphone : %1$s.</string>
     <string name="sources_font">Police de caractères : Barlow, sous licence SIL Open Font License.</string>
+    <!-- Mentions légales appropriées de la GPLv3 (article 0) : copyright, absence de garantie, droit de redistribuer, accès au texte de la licence. -->
+    <string name="sources_code_licence">Tracéo Live © 2026 Elod10. Logiciel libre sous licence <a href="https://www.gnu.org/licenses/gpl-3.0.html">GNU GPL version 3</a> ou ultérieure : vous pouvez le redistribuer et le modifier selon ses termes. Il est fourni sans aucune garantie.\n\n<a href="https://github.com/Elod10/prochains-passages-IDF">Code source et licence complète sur GitHub</a></string>
     <string name="sources_version">Version %1$s</string>
 
     <!-- Configuration -->
@@ -144,6 +167,11 @@
     <string name="direction_all">Tous les sens</string>
     <string name="direction_all_sub">Afficher tous les passages de la ligne à cet arrêt</string>
     <string name="direction_select_one">Choisissez au moins un sens</string>
+    <string name="direction_select_single">Choisissez le sens à afficher</string>
+    <string name="exact_alarm_title">Temps d\'attente à la minute près</string>
+    <string name="exact_alarm_body">Pour que vos widgets recomptent les minutes à l\'heure, Android demande d\'autoriser Tracéo Live dans « Alarmes et rappels ». Sans cela, ils peuvent avoir plusieurs minutes de retard.</string>
+    <string name="exact_alarm_allow">Autoriser</string>
+    <string name="direction_none_found">Aucun sens détecté pour l\'instant (fin de service…) : réessayez plus tard</string>
     <string name="keep_current">Garder la ligne et l\'arrêt actuels</string>
     <string name="keep_current_sub">%1$s · %2$s : modifier seulement le sens</string>
     <string name="save_widget">Enregistrer le widget</string>
@@ -212,9 +240,31 @@
     <string name="lock_window_to">À %1$s</string>
     <string name="lock_window_help">Pendant la plage, la notification s\'affiche et la position est suivie. En dehors, le widget s\'actualise comme d\'habitude. Une fin avant le début passe minuit.</string>
     <string name="lock_window_one_day">Gardez au moins un jour.</string>
+    <string name="lock_tile_section">Réglages rapides</string>
+    <string name="lock_tile_this">La tuile « Prochains passages » montrera ce widget</string>
+    <string name="lock_tile_this_added">La tuile est dans vos réglages rapides et montre ce widget</string>
+    <string name="lock_tile_other">La tuile « Prochains passages » montre un autre widget : %1$s</string>
+    <string name="lock_tile_other_added">La tuile de vos réglages rapides montre un autre widget : %1$s</string>
+    <string name="lock_tile_none">La tuile « Prochains passages » ne montre aucun widget</string>
+    <string name="lock_tile_help">La tuile s\'ouvre en tirant le volet, même téléphone verrouillé. Elle se met à jour à l\'ouverture du volet ; la toucher actualise les passages. Petite, elle n\'affiche que le prochain passage. Pour l\'ajouter, modifiez les réglages rapides.</string>
+    <string name="lock_tile_help_added">La tuile s\'ouvre en tirant le volet, même téléphone verrouillé ; la toucher actualise les passages. Petite, elle n\'affiche que le prochain passage. Android ne permet pas à une application de retirer sa tuile : pour la retirer, modifiez les réglages rapides.</string>
+    <string name="lock_tile_already">La tuile est déjà dans vos réglages rapides</string>
+    <string name="lock_tile_add_failed">Android n\'a pas pu ajouter la tuile : ajoutez-la en modifiant les réglages rapides</string>
+    <string name="lock_tile_choose">Montrer ce widget dans la tuile</string>
+    <string name="lock_tile_add">Ajouter la tuile aux réglages rapides</string>
+    <string name="tile_label">Prochains passages</string>
+    <string name="tile_empty">Aucun widget configuré</string>
     <string name="lock_day_on">%1$s, choisi</string>
     <string name="lock_day_off">%1$s, non choisi</string>
     <string name="lock_summary_off">Désactivé</string>
     <string name="lock_summary_notify">Notification</string>
     <string name="lock_summary_follow">Position suivie</string>
+    <string name="lock_summary_tile">Tuile</string>
+    <string name="lock_summary_live">Notification en Live Update</string>
+    <string name="lock_live_title">Mettre en avant (Live Update)</string>
+    <string name="lock_live_help">Android 16 : pendant la plage horaire, la notification passe en tête de l\'écran de verrouillage et le prochain passage s\'affiche dans une pastille de la barre d\'état. Android réserve cette mise en avant aux moments limités dans le temps : elle demande donc une plage horaire.</string>
+    <string name="lock_live_needs_notify">Activez d\'abord la notification.</string>
+    <string name="lock_live_needs_window">Choisissez une plage horaire : la mise en avant ne s\'applique que pendant celle-ci.</string>
+    <string name="lock_live_blocked">Les Live Updates de l\'application sont désactivées dans les réglages d\'Android : la notification reste ordinaire.</string>
+    <string name="lock_live_settings">Ouvrir les réglages des Live Updates</string>
 </resources>

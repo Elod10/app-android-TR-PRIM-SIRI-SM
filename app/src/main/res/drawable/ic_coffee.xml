@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tasse de café : bouton « Soutenir ». -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="20dp"
+    android:height="20dp"
+    android:tint="@color/text_primary"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M4.5,10h11.5v4a5,5 0,0 1,-5 5h-1.5a5,5 0,0 1,-5 -5zM16,11h1.5a2.5,2.5 0,0 1,0 5H16M8.5,3.5v3M12,3.5v3"
+        android:strokeWidth="1.8"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

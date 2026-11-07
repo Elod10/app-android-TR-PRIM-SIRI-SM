@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "TempsReelIDF"
+rootProject.name = "TraceoLive"
 include(":app")

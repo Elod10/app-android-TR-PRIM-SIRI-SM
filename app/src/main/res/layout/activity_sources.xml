@@ -64,6 +64,15 @@
                 android:text="@string/sources_font" />
 
             <TextView
+                android:id="@+id/code_licence"
+                style="@style/Text.Legal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:text="@string/sources_code_licence"
+                android:textColorLink="@color/text_primary" />
+
+            <TextView
                 android:id="@+id/version"
                 style="@style/Text.Status"
                 android:layout_width="match_parent"

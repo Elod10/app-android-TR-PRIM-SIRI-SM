@@ -152,6 +152,49 @@
                     android:visibility="gone" />
             </LinearLayout>
 
+            <!-- Consommation du quota du jour, quand une clé est enregistrée. -->
+            <LinearLayout
+                android:id="@+id/key_usage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_card"
+                android:orientation="vertical"
+                android:padding="@dimen/card_padding"
+                android:visibility="gone">
+
+                <TextView
+                    style="@style/Text.Label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/key_usage_title" />
+
+                <TextView
+                    android:id="@+id/key_usage_value"
+                    style="@style/Text.RowTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textSize="20sp" />
+
+                <ProgressBar
+                    android:id="@+id/key_usage_bar"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="8dp"
+                    android:layout_marginTop="8dp"
+                    android:importantForAccessibility="no"
+                    android:progressBackgroundTint="@color/divider"
+                    android:progressTint="@color/text_primary" />
+
+                <TextView
+                    android:id="@+id/key_usage_help"
+                    style="@style/Text.Help"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp" />
+            </LinearLayout>
+
             <TextView
                 style="@style/Text.SectionTitle"
                 android:layout_width="match_parent"

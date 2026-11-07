@@ -1,4 +1,4 @@
-# Temps réel IDF — widget Android (Tracéo / PRIM)
+# Tracéo Live — widget Android de prochains passages en Île-de-France
 
 Application Android (APK) fournissant un **widget d'écran d'accueil** qui affiche les prochains
 passages d'une ligne à un arrêt d'Île-de-France. Il fonctionne **sans clé ni compte**. Les passages
@@ -18,6 +18,13 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
   modes), avec bouton « Tester ». Elle est stockée uniquement sur le téléphone (sauvegarde Android
   désactivée) et n'est jamais envoyée à Tracéo. Vider le champ et enregistrer la retire : les widgets
   reviennent sur le cache de Tracéo. Les réglages indiquent la source active.
+  - **Quota du jour** : l'écran de la clé affiche les requêtes PRIM du jour, d'après les en-têtes
+    `x-ratelimit-remaining-day` et `x-ratelimit-limit-day` de PRIM (1 000 par jour pour une clé
+    standard). Une notification prévient une fois par jour à 80 % du quota.
+  - **Repli sur Tracéo** : quand PRIM refuse pour quota épuisé (HTTP 429), les widgets créés sans clé
+    passent par le cache de Tracéo jusqu'au lendemain, avec une notification ; ceux créés avec la clé,
+    sur des arrêts que Tracéo ne connaît pas, gardent leurs derniers passages et reprennent le lendemain.
+  - Avec une clé, les widgets citent la source devant l'heure de mise à jour : « PRIM 01:01 ».
 - **Mode automatique, selon la position** (première ligne de la liste des modes), compatible avec tous
   les formats et utilisable sans clé :
   - toucher le widget relit la position et affiche la ligne en tête du classement ;
@@ -81,6 +88,15 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
   non réveillante : aucune requête quand le téléphone est en veille). Sans clé, le choix de 1 min n'est
   pas proposé, car le cache de Tracéo ne change pas plus vite ; il revient avec une clé. Les temps
   d'attente sont recalculés chaque minute sans requête réseau.
+  - **Alarmes et rappels** : l'appli demande `SCHEDULE_EXACT_ALARM` (et non `USE_EXACT_ALARM`, que le
+    Play Store réserve aux réveils et aux agendas). Accordée d'office jusqu'à Android 13 ; à partir
+    d'Android 14, l'accueil de l'appli propose de l'autoriser. Sans elle, le tick reste approximatif et
+    les temps d'attente peuvent avoir plusieurs minutes de retard.
+  - **Calage sur Tracéo** : sans clé, chaque réponse annonce l'heure du prochain relevé (`nextAt`) ; les
+    widgets attendent ce relevé au lieu d'interroger à heure fixe, au plus une fois toutes les 30 s.
+  - **Étalement** : chaque installation tire au hasard un décalage de 2 à 40 s, ajouté au `nextAt` et
+    à la seconde du tick de chaque minute, pour que les téléphones n'interrogent pas tous en même temps.
+    Au plus 4 requêtes partent en parallèle, et les widgets d'un même téléphone s'actualisent ensemble.
 - Plusieurs widgets possibles (un arrêt/sens différent par widget), affichés sur l'accueil de
   l'application et modifiables depuis celui-ci ou par l'option « Reconfigurer » du lanceur (Android 12+).
 - **Écran de verrouillage** : chaque widget a ses réglages, ouverts depuis la ligne « Écran de
@@ -95,9 +111,20 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
     plus, sans son ni vibration. Ses boutons : « Actualiser » et, pour un widget qui suit la position,
     « Me localiser », qui relit la position comme un toucher du widget, téléphone verrouillé compris.
     Android 13 et plus demandent l'autorisation des notifications au moment où on l'active ;
+  - **Live Update** (Android 16), sur option et seulement avec une plage horaire, Android réservant la
+    mise en avant aux moments limités dans le temps : pendant la plage, la notification passe en tête de
+    l'écran de verrouillage et le prochain passage s'affiche dans une pastille de la barre d'état
+    (« 3 min »). Android décide en dernier ressort, et l'usager peut couper les Live Updates de
+    l'application dans les réglages : la notification reste alors ordinaire ;
   - **suivi de la position sans toucher** (widgets automatiques et À proximité), facultatif : le widget
     relit la position à chaque actualisation automatique, donc seulement écran allumé, verrouillé compris.
     Il faut pour cela la permission « Toujours autoriser », demandée uniquement quand on active l'option ;
+  - **tuile des réglages rapides « Prochains passages »**, accessible en tirant le volet, même téléphone
+    verrouillé : l'attente d'abord (« 3 min, puis 9 » / « Métro 13 → Châtillon », ou un sens par ligne).
+    Elle montre le widget choisi dans ses réglages, sinon le premier widget configuré. Elle relit les
+    passages à l'ouverture du volet, demande une actualisation si l'intervalle est écoulé, et la toucher
+    actualise tout de suite. Android 13 et plus permettent de l'ajouter depuis l'application ; un appui
+    long ouvre l'application ;
   - **plage horaire** : « tout le temps », ou certains jours entre deux heures (par exemple le mardi de
     16:00 à 16:30 ; une fin avant le début passe minuit). Pendant la plage, la notification s'affiche et la
     position est suivie ; en dehors, le widget s'actualise comme d'habitude. Une notification balayée
@@ -106,7 +133,7 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
 ## Installation
 
 1. Télécharger l'APK :
-   - onglet **Actions** du dépôt → dernier build « Build APK » → artefact `TempsReelIDF-apk` ;
+   - onglet **Actions** du dépôt → dernier build « Build APK » → artefact `TraceoLive-apk` ;
    - ou, pour une version taguée `vX.Y.Z`, la page **Releases**.
 2. Sur le téléphone, autoriser l'installation d'applications de sources inconnues puis ouvrir l'APK.
 3. Android 8.0 (API 26) minimum.
@@ -129,7 +156,7 @@ ajoutée et garde son sens.
 
 ## Utilisation
 
-1. Ajouter le format de son choix sur l'écran d'accueil : appui long → Widgets → Temps réel IDF, ou
+1. Ajouter le format de son choix sur l'écran d'accueil : appui long → Widgets → Tracéo Live, ou
    bouton « Ajouter un widget » de l'application. Dans les deux cas, la configuration s'ouvre ensuite.
 2. Choisir le mode, la ligne, l'arrêt, le ou les sens et la couleur, puis enregistrer. En mode
    automatique : choisir la ligne proche puis la couleur, tous les sens étant affichés.
@@ -191,7 +218,7 @@ ajoutée et garde son sens.
   en vues Android natives, coroutines Kotlin, `HttpURLConnection` + `org.json`.
 
 ```
-app/src/main/java/fr/trprim/siri/
+app/src/main/java/fr/gotraceo/live/
 ├── data/     modèles, clients Tracéo et PRIM (SIRI), choix de la source, parseur SIRI Lite, référentiel IDFM, sens, préférences, index des arrêts, règles du mode automatique, position
 ├── widget/   AppWidgetProvider, choix du format et des couleurs, dessin, actualisation et planification, mode automatique et son service
 └── ui/       accueil, galerie des formats, réglages, clé API, sources et licences, assistant de configuration et feuille de choix des lignes proches
@@ -199,7 +226,8 @@ app/src/main/java/fr/trprim/siri/
 
 ## Compiler
 
-Prérequis : JDK 17 et SDK Android (plateforme 35).
+Prérequis : JDK 17 et SDK Android (plateforme 36). L'application vise l'API 36 (Android 16), exigée par
+le Play Store : affichage bord à bord sur tous les écrans et geste retour prédictif dans la configuration.
 
 ```bash
 ./gradlew testDebugUnitTest   # tests unitaires (parseur SIRI, sens, référentiel, clients PRIM et Tracéo)
@@ -226,7 +254,7 @@ jour de l'application) :
 
 ```bash
 keytool -genkeypair -v -keystore release.keystore -storetype PKCS12 \
-  -alias tempsreelidf -keyalg RSA -keysize 4096 -validity 10000
+  -alias traceolive -keyalg RSA -keysize 4096 -validity 10000
 ```
 
 Sans ces secrets (par exemple pour une pull request venant d'un fork), la CI produit seulement un APK
@@ -237,7 +265,15 @@ push (artefact téléchargeable) et publie une release pour chaque tag `v*`.
 
 ## Licence
 
-Code sous licence [MIT](LICENSE). Les contributions sont les bienvenues (issues et pull requests).
+Code sous licence [GNU GPL version 3](LICENSE) ou ultérieure (GPL-3.0-or-later) : chacun peut
+l'utiliser, le modifier et le redistribuer, à condition de publier le code de sa version sous la même
+licence. Deux conditions supplémentaires, prévues par l'article 7 de la licence, figurent dans
+[NOTICE.md](NOTICE.md) : la licence ne donne aucun droit sur les noms « Tracéo » et « Tracéo Live », et
+une version modifiée distribuée doit porter un autre nom et un autre identifiant d'application.
+
+Les contributions sont les bienvenues (issues et pull requests) ; elles sont publiées sous la même
+licence. Avant le 7 novembre 2026, le code était sous licence MIT, qui reste valable pour les copies
+obtenues avant cette date.
 
 Le widget utilise la police [Barlow](https://github.com/jpt/barlow), sous licence SIL Open Font
 License 1.1 ([texte de la licence](app/src/main/assets/licenses/barlow-OFL.txt)).

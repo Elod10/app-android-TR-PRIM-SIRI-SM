@@ -63,13 +63,13 @@ jobs:
           else
             SRC=app/build/outputs/apk/debug/app-debug.apk; SUFFIX="-debug"
           fi
-          NAME="TempsReelIDF-${VERSION}-${GITHUB_SHA::7}${SUFFIX}.apk"
+          NAME="TraceoLive-${VERSION}-${GITHUB_SHA::7}${SUFFIX}.apk"
           cp "$SRC" "$NAME"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: TempsReelIDF-apk
+          name: TraceoLive-apk
           path: ${{ steps.apk.outputs.name }}
           if-no-files-found: error
 
