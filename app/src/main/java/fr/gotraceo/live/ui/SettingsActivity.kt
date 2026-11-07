@@ -21,6 +21,7 @@ class SettingsActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
+        SystemBars.pad(this)
         prefs = Prefs(this)
 
         findViewById<View>(R.id.back).setOnClickListener { finish() }

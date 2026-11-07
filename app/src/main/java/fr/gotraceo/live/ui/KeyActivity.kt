@@ -36,6 +36,7 @@ class KeyActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_key)
+        SystemBars.pad(this)
         prefs = Prefs(this)
 
         keyInput = findViewById(R.id.key_input)

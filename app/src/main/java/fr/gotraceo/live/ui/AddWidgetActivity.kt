@@ -25,6 +25,7 @@ class AddWidgetActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_add_widget)
+        SystemBars.pad(this)
         findViewById<View>(R.id.back).setOnClickListener { finish() }
 
         val container = findViewById<LinearLayout>(R.id.gallery)

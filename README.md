@@ -88,6 +88,10 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
   non réveillante : aucune requête quand le téléphone est en veille). Sans clé, le choix de 1 min n'est
   pas proposé, car le cache de Tracéo ne change pas plus vite ; il revient avec une clé. Les temps
   d'attente sont recalculés chaque minute sans requête réseau.
+  - **Alarmes et rappels** : l'appli demande `SCHEDULE_EXACT_ALARM` (et non `USE_EXACT_ALARM`, que le
+    Play Store réserve aux réveils et aux agendas). Accordée d'office jusqu'à Android 13 ; à partir
+    d'Android 14, l'accueil de l'appli propose de l'autoriser. Sans elle, le tick reste approximatif et
+    les temps d'attente peuvent avoir plusieurs minutes de retard.
   - **Calage sur Tracéo** : sans clé, chaque réponse annonce l'heure du prochain relevé (`nextAt`) ; les
     widgets attendent ce relevé au lieu d'interroger à heure fixe, au plus une fois toutes les 30 s.
   - **Étalement** : chaque installation tire au hasard un décalage de 2 à 40 s, ajouté au `nextAt` et
@@ -222,7 +226,8 @@ app/src/main/java/fr/gotraceo/live/
 
 ## Compiler
 
-Prérequis : JDK 17 et SDK Android (plateforme 36 pour compiler ; l'application vise toujours l'API 35).
+Prérequis : JDK 17 et SDK Android (plateforme 36). L'application vise l'API 36 (Android 16), exigée par
+le Play Store : affichage bord à bord sur tous les écrans et geste retour prédictif dans la configuration.
 
 ```bash
 ./gradlew testDebugUnitTest   # tests unitaires (parseur SIRI, sens, référentiel, clients PRIM et Tracéo)

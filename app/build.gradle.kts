@@ -18,7 +18,7 @@ android {
     defaultConfig {
         applicationId = "fr.gotraceo.live"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 15
         versionName = "1.8.1"
     }

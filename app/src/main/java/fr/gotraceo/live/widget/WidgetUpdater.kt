@@ -241,6 +241,15 @@ object WidgetUpdater {
     private fun canUseExactAlarms(alarmManager: AlarmManager): Boolean =
         Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()
 
+    /**
+     * Vrai si les temps d'attente ne peuvent pas suivre la minute : depuis Android 14, l'alarme
+     * exacte doit être autorisée par l'usager (« Alarmes et rappels »).
+     */
+    fun needsExactAlarmAccess(context: Context): Boolean {
+        val alarmManager = context.getSystemService(AlarmManager::class.java) ?: return false
+        return !canUseExactAlarms(alarmManager)
+    }
+
     /** Demande une actualisation immédiate (depuis l'application). */
     fun requestRefresh(context: Context, widgetId: Int? = null) {
         val intent = Intent(context, DeparturesWidgetProvider::class.java).setAction(ACTION_REFRESH)

@@ -2,11 +2,15 @@ package fr.gotraceo.live.ui
 
 import android.app.Activity
 import android.appwidget.AppWidgetManager
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.SharedPreferences
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.text.method.LinkMovementMethod
 import android.view.View
 import android.widget.Button
@@ -44,6 +48,7 @@ class MainActivity : Activity() {
     private lateinit var widgetsContainer: LinearLayout
     private lateinit var widgetsEmpty: View
     private lateinit var widgetsTitle: View
+    private lateinit var exactAlarmCard: View
 
     private val handler = Handler(Looper.getMainLooper())
     private val rebuild = Runnable { refreshWidgetList() }
@@ -78,6 +83,20 @@ class MainActivity : Activity() {
             startActivity(Intent(this, AddWidgetActivity::class.java))
         }
         findViewById<View>(R.id.open_support).setOnClickListener { Support.open(this) }
+        exactAlarmCard = findViewById(R.id.exact_alarm_card)
+        findViewById<View>(R.id.exact_alarm_allow).setOnClickListener { openExactAlarmSettings() }
+        SystemBars.pad(this)
+    }
+
+    /** Écran « Alarmes et rappels » de l'appli (Android 12 et plus). */
+    private fun openExactAlarmSettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.fromParts("package", packageName, null))
+        try {
+            startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+        }
     }
 
     override fun onResume() {
@@ -98,6 +117,8 @@ class MainActivity : Activity() {
         widgetsContainer.removeAllViews()
         widgetsEmpty.visibility = if (ids.isEmpty()) View.VISIBLE else View.GONE
         widgetsTitle.visibility = if (ids.isEmpty()) View.GONE else View.VISIBLE
+        val needsExactAlarms = ids.isNotEmpty() && WidgetUpdater.needsExactAlarmAccess(this)
+        exactAlarmCard.visibility = if (needsExactAlarms) View.VISIBLE else View.GONE
         val now = System.currentTimeMillis()
         ids.forEach { widgetsContainer.addView(widgetView(it, now)) }
     }

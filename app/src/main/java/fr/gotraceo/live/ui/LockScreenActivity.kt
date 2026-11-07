@@ -102,6 +102,7 @@ class LockScreenActivity : Activity() {
             return
         }
         setContentView(R.layout.activity_lock_screen)
+        SystemBars.pad(this)
         title = getString(R.string.lock_title)
         prefs = Prefs(this)
 

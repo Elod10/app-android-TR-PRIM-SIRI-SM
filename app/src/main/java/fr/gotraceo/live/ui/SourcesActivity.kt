@@ -19,6 +19,7 @@ class SourcesActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_sources)
+        SystemBars.pad(this)
         findViewById<View>(R.id.back).setOnClickListener { finish() }
 
         val about = findViewById<TextView>(R.id.about)

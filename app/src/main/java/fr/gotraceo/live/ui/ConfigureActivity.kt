@@ -11,6 +11,7 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.text.Editable
@@ -29,6 +30,8 @@ import android.widget.ListView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 import fr.gotraceo.live.R
 import fr.gotraceo.live.data.AnchorPolicy
 import fr.gotraceo.live.data.DataSources
@@ -204,6 +207,7 @@ class ConfigureActivity : Activity() {
         openScreens[widgetId] = WeakReference(this)
 
         setContentView(R.layout.activity_configure)
+        SystemBars.pad(this)
 
         prefs = Prefs(this)
         repository = ReferentialRepository(this)
@@ -238,10 +242,7 @@ class ConfigureActivity : Activity() {
                 else -> saveConfig()
             }
         }
-        findViewById<View>(R.id.back).setOnClickListener {
-            @Suppress("DEPRECATION")
-            onBackPressed()
-        }
+        findViewById<View>(R.id.back).setOnClickListener { navigateBack() }
 
         goTo(if (isProximity) Step.AUTO else Step.MODE)
     }
@@ -317,6 +318,7 @@ class ConfigureActivity : Activity() {
     private fun goTo(target: Step, forceRefresh: Boolean = false) {
         loadJob?.cancel()
         step = target
+        updateBackCallback()
         search.setText("")
         adapter.setItems(emptyList())
         gridAdapter.setItems(emptyList())
@@ -331,18 +333,45 @@ class ConfigureActivity : Activity() {
         }
     }
 
-    @Deprecated("Deprecated in Java")
-    @Suppress("DEPRECATION")
-    override fun onBackPressed() {
+    /** Retour à l'étape précédente, ou fermeture depuis la première. */
+    private fun navigateBack() {
         when (step) {
             Step.DIRECTION -> goTo(if (viaShortcut) Step.MODE else Step.STOP)
             Step.STOP -> goTo(Step.LINE)
             Step.LINE -> goTo(Step.MODE)
             Step.AUTO_COLOR -> goTo(Step.AUTO)
-            Step.AUTO -> if (isProximity) super.onBackPressed() else goTo(Step.MODE)
-            Step.MODE -> super.onBackPressed()
+            Step.AUTO -> if (isProximity) finish() else goTo(Step.MODE)
+            Step.MODE -> finish()
         }
     }
+
+    /** Vrai si le retour change d'étape au lieu de fermer l'écran. */
+    private val backStaysInside: Boolean
+        get() = step != Step.MODE && !(step == Step.AUTO && isProximity)
+
+    /**
+     * Android 13 et plus : le geste retour passe par OnBackInvokedCallback (onBackPressed n'est
+     * plus appelé pour une appli qui cible Android 16). Le rappel n'est inscrit que lorsqu'il y a
+     * une étape où revenir, pour laisser sinon au système l'animation de retour prédictif.
+     */
+    private var backCallback: Any? = null
+
+    private fun updateBackCallback() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val registered = backCallback as OnBackInvokedCallback?
+        if (backStaysInside && registered == null) {
+            val callback = OnBackInvokedCallback { navigateBack() }
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback)
+            backCallback = callback
+        } else if (!backStaysInside && registered != null) {
+            onBackInvokedDispatcher.unregisterOnBackInvokedCallback(registered)
+            backCallback = null
+        }
+    }
+
+    /** Jusqu'à Android 12. */
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() = navigateBack()
 
     private fun updateChrome() {
         val (index, label) = when (step) {
