@@ -166,6 +166,9 @@ ajoutée et garde son sens.
 
 ## Confidentialité
 
+La politique complète est dans [PRIVACY.md](PRIVACY.md), que l'application ouvre aussi depuis Réglages →
+« Politique de confidentialité ». En résumé :
+
 - **Sans clé**, le téléphone envoie à gotraceo.fr la ligne et l'arrêt demandés, et son adresse IP figure
   dans les journaux du serveur, conservés 14 jours. Pas de compte ni d'identifiant d'appareil.
 - **Avec une clé**, le téléphone interroge directement PRIM et l'open data IDFM. La clé n'est jamais

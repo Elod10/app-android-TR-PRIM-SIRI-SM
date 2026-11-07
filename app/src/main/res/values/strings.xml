@@ -85,6 +85,9 @@
     <string name="refresh_every_minute">Chaque minute</string>
     <string name="refresh_every_n">Toutes les %1$d minutes</string>
     <string name="main_sources_title">Sources et licences</string>
+    <string name="privacy_title">Politique de confidentialité</string>
+    <string name="privacy_description">Politique de confidentialité, ouvre le navigateur</string>
+    <string name="privacy_no_browser">Aucun navigateur ne peut ouvrir la politique de confidentialité.</string>
 
     <!-- Soutien facultatif -->
     <string name="support_short">Soutenir</string>

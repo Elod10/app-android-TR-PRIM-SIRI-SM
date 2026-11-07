@@ -13,7 +13,7 @@ import fr.gotraceo.live.data.Prefs
 import fr.gotraceo.live.widget.QuotaAlerts
 import fr.gotraceo.live.widget.WidgetUpdater
 
-/** Réglages : source des données, clé API et fréquence d'actualisation. */
+/** Réglages : source des données, clé API, fréquence d'actualisation, sources et confidentialité. */
 class SettingsActivity : Activity() {
 
     private lateinit var prefs: Prefs
@@ -27,6 +27,7 @@ class SettingsActivity : Activity() {
         findViewById<View>(R.id.back).setOnClickListener { finish() }
         findViewById<View>(R.id.open_key).setOnClickListener { startActivity(Intent(this, KeyActivity::class.java)) }
         findViewById<View>(R.id.open_sources).setOnClickListener { startActivity(Intent(this, SourcesActivity::class.java)) }
+        findViewById<View>(R.id.open_privacy).setOnClickListener { PrivacyPolicy.open(this) }
         findViewById<View>(R.id.open_support).setOnClickListener { Support.open(this) }
     }
 
