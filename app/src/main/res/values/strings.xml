@@ -171,6 +171,8 @@
     <string name="exact_alarm_title">Temps d\'attente à la minute près</string>
     <string name="exact_alarm_body">Pour que vos widgets recomptent les minutes à l\'heure, Android demande d\'autoriser Tracéo Live dans « Alarmes et rappels ». Sans cela, ils peuvent avoir plusieurs minutes de retard.</string>
     <string name="exact_alarm_allow">Autoriser</string>
+    <string name="exact_alarm_widget_body">Votre widget est enregistré. Pour qu\'il recompte les minutes à l\'heure, autorisez Tracéo Live dans « Alarmes et rappels » : sans cela, ses temps d\'attente peuvent avoir plusieurs minutes de retard.</string>
+    <string name="exact_alarm_later">Plus tard</string>
     <string name="direction_none_found">Aucun sens détecté pour l\'instant (fin de service…) : réessayez plus tard</string>
     <string name="keep_current">Garder la ligne et l\'arrêt actuels</string>
     <string name="keep_current_sub">%1$s · %2$s : modifier seulement le sens</string>
