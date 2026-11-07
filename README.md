@@ -90,7 +90,8 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
   d'attente sont recalculés chaque minute sans requête réseau.
   - **Alarmes et rappels** : l'appli demande `SCHEDULE_EXACT_ALARM` (et non `USE_EXACT_ALARM`, que le
     Play Store réserve aux réveils et aux agendas). Accordée d'office jusqu'à Android 13 ; à partir
-    d'Android 14, l'accueil de l'appli propose de l'autoriser. Sans elle, le tick reste approximatif et
+    d'Android 14, l'appli la propose à l'enregistrement de chaque nouveau widget tant
+    qu'elle manque, et une carte de l'accueil y mène. Sans elle, le tick reste approximatif et
     les temps d'attente peuvent avoir plusieurs minutes de retard.
   - **Calage sur Tracéo** : sans clé, chaque réponse annonce l'heure du prochain relevé (`nextAt`) ; les
     widgets attendent ce relevé au lieu d'interroger à heure fixe, au plus une fois toutes les 30 s.

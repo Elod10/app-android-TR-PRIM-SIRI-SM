@@ -2,6 +2,7 @@ package fr.gotraceo.live.ui
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -138,6 +139,9 @@ class ConfigureActivity : Activity() {
     private var autoFix: PositionFix? = null
     private var autoFirst: RankedLine? = null
     private var autoItems: List<RowItem> = emptyList()
+
+    /** Vrai une fois « Alarmes et rappels » ouvert après l'enregistrement : le retour ferme l'écran. */
+    private var awaitingAlarmAccess = false
 
     /** Format choisi dans la liste des widgets du lanceur (null pour l'entrée automatique). */
     private val chosenFormat: WidgetFormat? by lazy {
@@ -299,6 +303,11 @@ class ConfigureActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        // Retour de « Alarmes et rappels » : le widget est déjà enregistré, accordée ou non.
+        if (awaitingAlarmAccess) {
+            finish()
+            return
+        }
         // Au retour de l'écran de verrouillage, son résumé change.
         val active = LockScreenActivity.isActive(this, prefs, widgetId)
         notifyIcon.setImageResource(if (active) R.drawable.ic_notification_on else R.drawable.ic_notification_off)
@@ -946,7 +955,26 @@ class ConfigureActivity : Activity() {
         WidgetUpdater.scheduleTick(this)
         setResult(RESULT_OK, resultIntent())
         Toast.makeText(this, R.string.saved_toast, Toast.LENGTH_SHORT).show()
-        finish()
+        // Le widget est déjà enregistré : la demande qui suit ne peut pas le laisser inachevé.
+        if (existing == null && WidgetUpdater.needsExactAlarmAccess(this)) offerExactAlarms() else finish()
+    }
+
+    /**
+     * Android 14 et plus : à la création d'un widget, propose d'autoriser « Alarmes et rappels », sans
+     * quoi les temps d'attente peuvent prendre du retard. « Plus tard » ferme l'écran ; la carte de
+     * l'accueil reste là pour y revenir, et la question revient au prochain widget créé.
+     */
+    private fun offerExactAlarms() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.exact_alarm_title)
+            .setMessage(R.string.exact_alarm_widget_body)
+            .setPositiveButton(R.string.exact_alarm_allow) { _, _ ->
+                awaitingAlarmAccess = true
+                ExactAlarmAccess.openSettings(this)
+            }
+            .setNegativeButton(R.string.exact_alarm_later) { _, _ -> finish() }
+            .setOnCancelListener { finish() }
+            .show()
     }
 
     // --- Aperçu et couleur -----------------------------------------------------------------------
