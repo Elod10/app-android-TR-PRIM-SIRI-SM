@@ -175,6 +175,36 @@
                     android:src="@drawable/ic_chevron" />
             </LinearLayout>
 
+            <!-- Exigée par Google Play dans l'appli ; la page s'ouvre dans le navigateur. -->
+            <LinearLayout
+                android:id="@+id/open_privacy"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_card_touch"
+                android:clickable="true"
+                android:contentDescription="@string/privacy_description"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="@dimen/card_padding"
+                android:paddingEnd="@dimen/card_padding">
+
+                <TextView
+                    style="@style/Text.RowTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/privacy_title" />
+
+                <ImageView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="4dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_open" />
+            </LinearLayout>
+
             <!-- Le bouton d'abord, l'explication dessous : les réglages tiennent sur un écran. -->
             <FrameLayout
                 android:id="@+id/open_support"

@@ -1,5 +1,7 @@
 package fr.gotraceo.live.data
 
+import fr.gotraceo.live.ui.PrivacyPolicy
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -138,7 +140,7 @@ class LegalMentionsTest {
         assertTrue(licence.contains("redistribuer et le modifier"))
         assertTrue(licence.contains("sans aucune garantie"))
         assertLinksTo(licence, "https://www.gnu.org/licenses/gpl-3.0.html")
-        assertLinksTo(licence, "https://github.com/Elod10/prochains-passages-IDF")
+        assertLinksTo(licence, "https://github.com/Elod10/traceo-live")
         val xml = File("src/main/res/layout/activity_sources.xml").readText()
         assertTrue(xml.contains("@string/sources_code_licence"))
         val code = File("src/main/java/fr/gotraceo/live/ui/SourcesActivity.kt").readText()
@@ -153,5 +155,18 @@ class LegalMentionsTest {
     @Test
     fun oneMinuteIsNoLongerPromisedWithoutKey() {
         assertFalse(string("main_refresh_help").contains("« Chaque minute »"))
+    }
+
+    /** Google Play exige la politique dans l'appli, à l'adresse donnée dans la Play Console. */
+    @Test
+    fun theSettingsOpenThePrivacyPolicyOfTheRepository() {
+        assertEquals("https://github.com/Elod10/traceo-live/blob/main/PRIVACY.md", PrivacyPolicy.URL)
+        val policy = File("../PRIVACY.md")
+        assertTrue("PRIVACY.md absent de la racine du dépôt", policy.isFile)
+        val text = policy.readText()
+        assertTrue(text.contains("Politique de confidentialité de Tracéo Live"))
+        assertTrue(text.contains("contact@gotraceo.fr"))
+        val code = File("src/main/java/fr/gotraceo/live/ui/SettingsActivity.kt").readText()
+        assertTrue(code.contains("R.id.open_privacy).setOnClickListener { PrivacyPolicy.open(this) }"))
     }
 }

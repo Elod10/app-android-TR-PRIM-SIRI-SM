@@ -85,9 +85,16 @@ class PassageSourceTest {
 
     @Test
     fun oneMinuteIsNotOfferedWithoutKey() {
-        val all = listOf(0, 1, 2, 5, 10, 15, 30)
-        assertEquals(listOf(0, 2, 5, 10, 15, 30), DataSources.refreshChoices(all, hasKey = false))
-        assertEquals(all, DataSources.refreshChoices(all, hasKey = true))
+        val all = Prefs.REFRESH_CHOICES
+        assertEquals(listOf(0, 2, 5, 10), DataSources.refreshChoices(all, hasKey = false))
+        assertEquals(listOf(0, 1, 2, 5, 10), DataSources.refreshChoices(all, hasKey = true))
+    }
+
+    @Test
+    fun theRemovedLongIntervalsBecomeTenMinutes() {
+        assertEquals(10, Prefs.offeredRefresh(15))
+        assertEquals(10, Prefs.offeredRefresh(30))
+        for (minutes in Prefs.REFRESH_CHOICES) assertEquals(minutes, Prefs.offeredRefresh(minutes))
     }
 
     @Test
