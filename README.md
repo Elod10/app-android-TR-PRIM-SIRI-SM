@@ -248,7 +248,15 @@ push (artefact téléchargeable) et publie une release pour chaque tag `v*`.
 
 ## Licence
 
-Code sous licence [MIT](LICENSE). Les contributions sont les bienvenues (issues et pull requests).
+Code sous licence [GNU GPL version 3](LICENSE) ou ultérieure (GPL-3.0-or-later) : chacun peut
+l'utiliser, le modifier et le redistribuer, à condition de publier le code de sa version sous la même
+licence. Deux conditions supplémentaires, prévues par l'article 7 de la licence, figurent dans
+[NOTICE.md](NOTICE.md) : la licence ne donne aucun droit sur les noms « Tracéo » et « Tracéo Live », et
+une version modifiée distribuée doit porter un autre nom et un autre identifiant d'application.
+
+Les contributions sont les bienvenues (issues et pull requests) ; elles sont publiées sous la même
+licence. Avant le 7 novembre 2026, le code était sous licence MIT, qui reste valable pour les copies
+obtenues avant cette date.
 
 Le widget utilise la police [Barlow](https://github.com/jpt/barlow), sous licence SIL Open Font
 License 1.1 ([texte de la licence](app/src/main/assets/licenses/barlow-OFL.txt)).
