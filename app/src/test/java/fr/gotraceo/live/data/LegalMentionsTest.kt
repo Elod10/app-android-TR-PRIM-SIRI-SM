@@ -130,6 +130,21 @@ class LegalMentionsTest {
         assertTrue(string("main_key_help").contains("met ses réponses en cache"))
     }
 
+    /** Mentions légales appropriées de la GPLv3 (article 0), que toute version modifiée doit alors garder. */
+    @Test
+    fun theSourcesScreenShowsTheCodeLicence() {
+        val licence = string("sources_code_licence")
+        assertTrue(licence.contains("© 2026 Elod10"))
+        assertTrue(licence.contains("redistribuer et le modifier"))
+        assertTrue(licence.contains("sans aucune garantie"))
+        assertLinksTo(licence, "https://www.gnu.org/licenses/gpl-3.0.html")
+        assertLinksTo(licence, "https://github.com/Elod10/prochains-passages-IDF")
+        val xml = File("src/main/res/layout/activity_sources.xml").readText()
+        assertTrue(xml.contains("@string/sources_code_licence"))
+        val code = File("src/main/java/fr/gotraceo/live/ui/SourcesActivity.kt").readText()
+        assertTrue("Liens inactifs", code.contains("R.id.code_licence).movementMethod"))
+    }
+
     @Test
     fun theAppSaysItIsNotAffiliatedWithIdfm() {
         assertTrue(string("sources_not_affiliated").contains("pas affiliée à Île-de-France Mobilités"))

@@ -25,6 +25,7 @@ class SourcesActivity : Activity() {
         val about = findViewById<TextView>(R.id.about)
         about.setText(if (Prefs(this).hasApiKey) R.string.main_about_prim else R.string.main_about_traceo)
         about.movementMethod = LinkMovementMethod.getInstance()
+        findViewById<TextView>(R.id.code_licence).movementMethod = LinkMovementMethod.getInstance()
 
         // La Licence Ouverte demande la date des données réutilisées : celle de l'index, s'il existe.
         AutoMode.store(this).savedAt()?.let { savedAt ->
