@@ -26,6 +26,9 @@ class TraceoClientTest {
         const val STATIONS_PATH = "/api/stations"
         const val LINES_PATH = "/api/lines"
 
+        /** Statut de [respond] qui coupe la connexion sans rien répondre. */
+        const val DROP = -1
+
         const val LINES = """{"lines": [
             {"id": "line:IDFM:C01742", "code": "A", "name": "A", "color": "#EB2132", "textColor": "#FFFFFF",
              "mode": {"key": "rer", "label": "RER", "icon": "🚆", "order": 2},
@@ -106,6 +109,7 @@ class TraceoClientTest {
         requests += Request(path, target, headers)
 
         val (status, body) = nextResponse(path)
+        if (status == DROP) return
         val bytes = body.toByteArray(Charsets.UTF_8)
         val out = socket.getOutputStream()
         out.write(
@@ -329,11 +333,10 @@ class TraceoClientTest {
 
     @Test
     fun networkFailureIsReportedWithoutPrim() {
-        val port = server.localPort
-        server.close()
-        val error = expectKind(TraceoException.Kind.NETWORK) {
-            TraceoClient("http://127.0.0.1:$port", warmed).departures(STOP, "C01371")
-        }
+        // Une connexion coupée sans réponse, plutôt qu'un port fermé : sous Linux, une connexion vers un
+        // port éphémère libre peut se connecter à elle-même et lire sa propre requête comme une réponse.
+        respond(PASSAGES_PATH, DROP, "")
+        val error = expectKind(TraceoException.Kind.NETWORK) { client().departures(STOP, "C01371") }
         assertFalse(error.message.orEmpty().contains("PRIM"))
     }
 
