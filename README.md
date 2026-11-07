@@ -1,4 +1,4 @@
-# Temps réel IDF — widget Android (Tracéo / PRIM)
+# Tracéo Live — widget Android de prochains passages en Île-de-France
 
 Application Android (APK) fournissant un **widget d'écran d'accueil** qui affiche les prochains
 passages d'une ligne à un arrêt d'Île-de-France. Il fonctionne **sans clé ni compte**. Les passages
@@ -18,6 +18,13 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
   modes), avec bouton « Tester ». Elle est stockée uniquement sur le téléphone (sauvegarde Android
   désactivée) et n'est jamais envoyée à Tracéo. Vider le champ et enregistrer la retire : les widgets
   reviennent sur le cache de Tracéo. Les réglages indiquent la source active.
+  - **Quota du jour** : l'écran de la clé affiche les requêtes PRIM du jour, d'après les en-têtes
+    `x-ratelimit-remaining-day` et `x-ratelimit-limit-day` de PRIM (1 000 par jour pour une clé
+    standard). Une notification prévient une fois par jour à 80 % du quota.
+  - **Repli sur Tracéo** : quand PRIM refuse pour quota épuisé (HTTP 429), les widgets créés sans clé
+    passent par le cache de Tracéo jusqu'au lendemain, avec une notification ; ceux créés avec la clé,
+    sur des arrêts que Tracéo ne connaît pas, gardent leurs derniers passages et reprennent le lendemain.
+  - Avec une clé, les widgets citent la source devant l'heure de mise à jour : « PRIM 01:01 ».
 - **Mode automatique, selon la position** (première ligne de la liste des modes), compatible avec tous
   les formats et utilisable sans clé :
   - toucher le widget relit la position et affiche la ligne en tête du classement ;
@@ -81,6 +88,11 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
   non réveillante : aucune requête quand le téléphone est en veille). Sans clé, le choix de 1 min n'est
   pas proposé, car le cache de Tracéo ne change pas plus vite ; il revient avec une clé. Les temps
   d'attente sont recalculés chaque minute sans requête réseau.
+  - **Calage sur Tracéo** : sans clé, chaque réponse annonce l'heure du prochain relevé (`nextAt`) ; les
+    widgets attendent ce relevé au lieu d'interroger à heure fixe, au plus une fois toutes les 30 s.
+  - **Étalement** : chaque installation tire au hasard un décalage de 2 à 40 s, ajouté au `nextAt` et
+    à la seconde du tick de chaque minute, pour que les téléphones n'interrogent pas tous en même temps.
+    Au plus 4 requêtes partent en parallèle, et les widgets d'un même téléphone s'actualisent ensemble.
 - Plusieurs widgets possibles (un arrêt/sens différent par widget), affichés sur l'accueil de
   l'application et modifiables depuis celui-ci ou par l'option « Reconfigurer » du lanceur (Android 12+).
 - **Écran de verrouillage** : chaque widget a ses réglages, ouverts depuis la ligne « Écran de
@@ -117,7 +129,7 @@ viennent toujours de **PRIM**, la plateforme d'Île-de-France Mobilités, par l'
 ## Installation
 
 1. Télécharger l'APK :
-   - onglet **Actions** du dépôt → dernier build « Build APK » → artefact `TempsReelIDF-apk` ;
+   - onglet **Actions** du dépôt → dernier build « Build APK » → artefact `TraceoLive-apk` ;
    - ou, pour une version taguée `vX.Y.Z`, la page **Releases**.
 2. Sur le téléphone, autoriser l'installation d'applications de sources inconnues puis ouvrir l'APK.
 3. Android 8.0 (API 26) minimum.
@@ -140,7 +152,7 @@ ajoutée et garde son sens.
 
 ## Utilisation
 
-1. Ajouter le format de son choix sur l'écran d'accueil : appui long → Widgets → Temps réel IDF, ou
+1. Ajouter le format de son choix sur l'écran d'accueil : appui long → Widgets → Tracéo Live, ou
    bouton « Ajouter un widget » de l'application. Dans les deux cas, la configuration s'ouvre ensuite.
 2. Choisir le mode, la ligne, l'arrêt, le ou les sens et la couleur, puis enregistrer. En mode
    automatique : choisir la ligne proche puis la couleur, tous les sens étant affichés.
@@ -202,7 +214,7 @@ ajoutée et garde son sens.
   en vues Android natives, coroutines Kotlin, `HttpURLConnection` + `org.json`.
 
 ```
-app/src/main/java/fr/trprim/siri/
+app/src/main/java/fr/gotraceo/live/
 ├── data/     modèles, clients Tracéo et PRIM (SIRI), choix de la source, parseur SIRI Lite, référentiel IDFM, sens, préférences, index des arrêts, règles du mode automatique, position
 ├── widget/   AppWidgetProvider, choix du format et des couleurs, dessin, actualisation et planification, mode automatique et son service
 └── ui/       accueil, galerie des formats, réglages, clé API, sources et licences, assistant de configuration et feuille de choix des lignes proches
@@ -237,7 +249,7 @@ jour de l'application) :
 
 ```bash
 keytool -genkeypair -v -keystore release.keystore -storetype PKCS12 \
-  -alias tempsreelidf -keyalg RSA -keysize 4096 -validity 10000
+  -alias traceolive -keyalg RSA -keysize 4096 -validity 10000
 ```
 
 Sans ces secrets (par exemple pour une pull request venant d'un fork), la CI produit seulement un APK

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Temps réel IDF</string>
+    <string name="app_name">Tracéo Live</string>
     <string name="back">Retour</string>
 
     <!-- Widget -->
@@ -48,9 +48,9 @@
     <!-- Accueil -->
     <string name="main_widgets_title">Mes widgets</string>
     <string name="main_empty_title">Aucun widget pour l\'instant</string>
-    <string name="main_empty_body">Ajoutez-en un ici, ou depuis la liste des widgets de votre lanceur (Temps réel IDF). Les passages s\'affichent sans compte et sans clé.</string>
+    <string name="main_empty_body">Ajoutez-en un ici, ou depuis la liste des widgets de votre lanceur (Tracéo Live). Les passages s\'affichent sans compte et sans clé.</string>
     <string name="main_add_widget">Ajouter un widget</string>
-    <string name="main_add_widget_unsupported">Votre lanceur ne permet pas l\'ajout direct : faites un appui long sur l\'écran d\'accueil › Widgets › Temps réel IDF.</string>
+    <string name="main_add_widget_unsupported">Votre lanceur ne permet pas l\'ajout direct : faites un appui long sur l\'écran d\'accueil › Widgets › Tracéo Live.</string>
     <string name="main_widget_configure">Modifier ce widget</string>
     <string name="main_widget_refresh">Actualiser ce widget</string>
     <string name="main_widget_setup">Configurer</string>
@@ -78,7 +78,6 @@
     <string name="settings_key_add">Ajouter une clé API PRIM</string>
     <string name="settings_key_edit">Clé API PRIM</string>
     <string name="settings_key_add_sub">Facultatif : la voie, le câble et le funiculaire</string>
-    <string name="settings_key_edit_sub">Enregistrée : la voie, le câble et le funiculaire</string>
     <string name="main_refresh_title">Actualisation automatique</string>
     <string name="main_refresh_help">Seulement quand l\'écran est allumé. Touchez un widget pour l\'actualiser tout de suite. Sans clé, l\'intervalle le plus court est de 2 minutes : le cache de Tracéo ne change pas plus vite.</string>
     <string name="main_refresh_help_key">Seulement quand l\'écran est allumé. Touchez un widget pour l\'actualiser tout de suite. Chaque actualisation consomme une requête par point d\'arrêt sur votre quota PRIM.</string>
@@ -86,6 +85,13 @@
     <string name="refresh_every_minute">Chaque minute</string>
     <string name="refresh_every_n">Toutes les %1$d minutes</string>
     <string name="main_sources_title">Sources et licences</string>
+
+    <!-- Soutien facultatif -->
+    <string name="support_short">Soutenir</string>
+    <string name="support_short_description">Soutenir Tracéo : don facultatif, ouvre le navigateur</string>
+    <string name="support_title">Soutenir Tracéo</string>
+    <string name="support_body">Don facultatif sur Buy Me a Coffee, dans votre navigateur. Tracéo Live reste gratuite et sans publicité, que vous donniez ou non.</string>
+    <string name="support_no_browser">Aucun navigateur ne peut ouvrir la page de soutien.</string>
 
     <!-- Clé API -->
     <string name="main_key_title">Clé API PRIM</string>
@@ -107,6 +113,21 @@
     <string name="main_key_testing">Test en cours…</string>
     <string name="main_key_ok">Clé valide : l\'API PRIM répond</string>
     <string name="main_key_empty">Saisissez d\'abord une clé</string>
+
+    <!-- Quota de la clé PRIM -->
+    <string name="key_usage_title">Requêtes PRIM aujourd\'hui</string>
+    <string name="key_usage_value">%1$s sur %2$s</string>
+    <string name="key_usage_help">Compté à chaque réponse de PRIM, qui indique aussi ce qu\'il reste à la clé pour la journée. Vous êtes prévenu à 80 % du quota ; au-delà, les widgets passent par Tracéo jusqu\'au lendemain.</string>
+    <string name="key_usage_exhausted">Quota du jour atteint : les widgets passent par Tracéo jusqu\'à demain. Ceux créés avec la clé, que Tracéo ne connaît pas, reprendront demain.</string>
+    <string name="settings_key_usage">Enregistrée · %1$s requêtes sur %2$s aujourd\'hui</string>
+    <string name="main_source_prim_paused">PRIM via Tracéo, quota atteint</string>
+    <string name="main_source_prim_paused_detail">Votre clé a épuisé son quota du jour : les widgets passent par le cache de Tracéo jusqu\'à demain, sans la voie.</string>
+    <string name="quota_channel">Quota de la clé PRIM</string>
+    <string name="quota_channel_description">Prévient quand la clé PRIM approche de son quota du jour, puis quand les widgets passent par Tracéo.</string>
+    <string name="quota_warning_title">Clé PRIM : 80 % du quota du jour</string>
+    <string name="quota_warning_body">%1$s requêtes sur %2$s aujourd\'hui. Une fois le quota atteint, les widgets passeront par Tracéo jusqu\'à demain.</string>
+    <string name="quota_fallback_title">Quota PRIM du jour atteint</string>
+    <string name="quota_fallback_body">Les widgets passent par le cache de Tracéo jusqu\'à demain : relevé toutes les 2 minutes, sans la voie. Ceux créés avec la clé reprendront demain.</string>
 
     <!-- Mention courte des écrans qui montrent des données -->
     <string name="data_mention">Contient des informations de <a href="https://prim.iledefrance-mobilites.fr/">PRIM</a>, présentement mises à disposition aux conditions de la <a href="https://cloud.fabmob.io/s/eYWWJBdM3fQiFNm">Licence Mobilités</a> et de l\'<a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL</a>.</string>
