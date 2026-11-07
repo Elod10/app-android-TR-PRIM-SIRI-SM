@@ -555,7 +555,7 @@ class WidgetContentTest {
         )
         assertEquals(
             "Ligne 1, Bastille. Vers Château de Vincennes : 1 minute, puis 5 minutes. Vers La Défense : 2 minutes. " +
-                "Données PRIM, mises à jour à 23:12.",
+                "Données PRIM, mises à jour à ${DepartureFormat.clock(now - 60_000L)}.",
             WidgetContent.describe(result),
         )
     }
@@ -884,7 +884,7 @@ class WidgetContentTest {
         )
         assertEquals(
             "À proximité. Ligne 1, Nation · 33 m. Vers La Défense : 2 minutes, puis 6 minutes. " +
-                "Ligne A, Nation · 33 m. Aucun passage. Données PRIM, mises à jour à 23:12.",
+                "Ligne A, Nation · 33 m. Aucun passage. Données PRIM, mises à jour à ${DepartureFormat.clock(now - 60_000L)}.",
             WidgetContent.describe(result),
         )
     }
